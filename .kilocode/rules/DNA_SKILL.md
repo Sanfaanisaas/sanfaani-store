@@ -1,0 +1,1 @@
+/home/ad/.opencode/skills/DNA_SKILL.md

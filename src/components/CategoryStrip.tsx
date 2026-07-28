@@ -1,8 +1,10 @@
+import { Laptop, Smartphone, Headphones, Wrench } from "lucide-react";
+
 const categories = [
-  { label: "Laptops", icon: "💻" },
-  { label: "Phones & Tablets", icon: "📱" },
-  { label: "Accessories", icon: "🎧" },
-  { label: "Repair Services", icon: "🛠️" },
+  { label: "Laptops", icon: Laptop },
+  { label: "Phones & Tablets", icon: Smartphone },
+  { label: "Accessories", icon: Headphones },
+  { label: "Repair Services", icon: Wrench },
 ];
 
 export default function CategoryStrip() {
@@ -15,7 +17,7 @@ export default function CategoryStrip() {
             href="#shop"
             className="group flex flex-col items-center gap-2 px-6 py-8 text-center transition hover:bg-navy-900/[0.03]"
           >
-            <span className="text-2xl">{c.icon}</span>
+            <c.icon className="h-6 w-6 text-navy-900" aria-hidden="true" />
             <span className="text-sm font-medium text-ink">{c.label}</span>
             <span className="h-0.5 w-0 bg-gold transition-all group-hover:w-8" />
           </a>

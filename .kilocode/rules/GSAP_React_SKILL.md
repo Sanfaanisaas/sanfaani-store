@@ -1,0 +1,1 @@
+/home/ad/.opencode/skills/GSAP_React_SKILL.md

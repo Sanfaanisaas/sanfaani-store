@@ -1,4 +1,5 @@
 import { MockGadget } from "@/lib/mockData/gadgets";
+import { Package } from "lucide-react";
 
 const conditionStyles: Record<MockGadget["condition"], string> = {
   New: "bg-blue/10 text-blue",
@@ -16,7 +17,7 @@ export default function ProductCard({ gadget }: { gadget: MockGadget }) {
   return (
     <div className="group relative flex flex-col overflow-hidden rounded-xl border border-navy-900/10 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-md">
       <div className="flex h-36 items-center justify-center bg-navy-900/[0.03] text-4xl">
-        📦
+        <Package className="h-12 w-12 text-navy-900" aria-hidden="true" />
       </div>
       <div className="relative border-t border-dashed border-navy-900/15 px-5 pt-4 pb-5">
         <span className="absolute -top-2 left-1/2 h-4 w-4 -translate-x-1/2 rounded-full bg-paper" />

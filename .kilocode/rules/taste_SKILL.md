@@ -1,0 +1,1 @@
+/home/ad/.opencode/skills/taste_SKILL.md
