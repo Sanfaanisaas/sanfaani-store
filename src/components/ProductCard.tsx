@@ -1,5 +1,6 @@
 import { MockGadget } from "@/lib/mockData/gadgets";
 import { Package } from "lucide-react";
+import Link from "next/link";
 
 const conditionStyles: Record<MockGadget["condition"], string> = {
   New: "bg-blue/10 text-blue",
@@ -36,9 +37,9 @@ export default function ProductCard({ gadget }: { gadget: MockGadget }) {
           <span className="font-display text-lg font-semibold text-ink">
             ₦{gadget.price.toLocaleString()}
           </span>
-          <span className="text-xs font-medium text-blue opacity-0 transition group-hover:opacity-100">
+          <Link href={`/shop/${gadget.id}`} className="text-xs cursor-pointer font-medium text-blue transition hover:text-gold">
             View details →
-          </span>
+          </Link>
         </div>
       </div>
     </div>
