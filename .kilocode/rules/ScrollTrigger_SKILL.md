@@ -1,0 +1,1 @@
+/home/ad/.opencode/skills/ScrollTrigger_SKILL.md

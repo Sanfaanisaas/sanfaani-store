@@ -1,0 +1,1 @@
+/home/ad/.opencode/skills/GSAP_SKILL.md

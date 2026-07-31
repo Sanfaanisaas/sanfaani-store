@@ -5,14 +5,12 @@ import RepairProcess from "@/components/RepairProcess";
 import TrustBand from "@/components/TrustBand";
 import WaitlistForm from "@/components/WaitlistForm";
 import Footer from "@/components/Footer";
-import CategoryStrip from "@/components/CategoryStrip";
 
 export default function HomePage() {
   return (
     <main className="bg-paper">
       <Navbar />
       <Hero />
-      <CategoryStrip />
       <FeaturedGadgets />
       <RepairProcess />
       <TrustBand />

@@ -1,0 +1,1 @@
+/home/ad/.opencode/skills/UI⁄UX_PRO_SKILL.md
