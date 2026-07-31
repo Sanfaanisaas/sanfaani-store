@@ -1,24 +1,47 @@
 import Link from "next/link";
 
 const columns = [
-  { heading: "Shop", links: ["Laptops", "Phones & Tablets", "Accessories", "Device Guidance"] },
-  { heading: "Repair", links: ["Request a Repair", "Track a Repair", "Warranty & Returns"] },
-  { heading: "Company", links: ["About Sanfaani", "Business & Schools", "Buyer Guides"] },
-  { heading: "Support", links: ["Contact Us", "Terms of Sale", "Privacy Notice"] },
+  {
+    heading: "Shop",
+    links: [
+      { label: "Laptops", href: "/shop" },
+      { label: "Phones & Tablets", href: "/shop" },
+      { label: "Accessories", href: "/shop" },
+    ],
+  },
+  {
+    heading: "Repair",
+    links: [
+      { label: "Request a Repair", href: "/repair/request" },
+      { label: "Track a Repair", href: "/repair/track" },
+      { label: "Warranty", href: "/policies/warranty" },
+      { label: "Returns", href: "/policies/returns" },
+    ],
+  },
+  {
+    heading: "Support",
+    links: [
+      { label: "Contact Us", href: "/support" },
+      { label: "Terms of Sale", href: "/policies/terms" },
+      { label: "Privacy Notice", href: "/policies/privacy" },
+    ],
+  },
 ];
 
 export default function Footer() {
   return (
     <footer className="border-t border-gold/30 bg-navy-900 text-paper">
       <div className="mx-auto max-w-6xl px-6 py-16">
-        <div className="grid grid-cols-2 gap-10 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-10 sm:grid-cols-3">
           {columns.map((col) => (
             <div key={col.heading}>
               <h4 className="font-display text-sm font-semibold text-gold">{col.heading}</h4>
               <ul className="mt-4 space-y-2.5 text-sm text-paper/70">
                 {col.links.map((link) => (
-                  <li key={link}>
-                    <Link href="#" className="hover:text-paper">{link}</Link>
+                  <li key={link.label}>
+                    <Link href={link.href} className="hover:text-paper">
+                      {link.label}
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -34,9 +57,15 @@ export default function Footer() {
             © {new Date().getFullYear()} Sanfaani LTD. All rights reserved.
           </p>
           <div className="flex gap-5 text-xs text-paper/50">
-            <Link href="#" className="hover:text-paper">Terms</Link>
-            <Link href="#" className="hover:text-paper">Privacy</Link>
-            <Link href="#" className="hover:text-paper">Warranty</Link>
+            <Link href="/policies/terms" className="hover:text-paper">
+              Terms
+            </Link>
+            <Link href="/policies/privacy" className="hover:text-paper">
+              Privacy
+            </Link>
+            <Link href="/policies/warranty" className="hover:text-paper">
+              Warranty
+            </Link>
           </div>
         </div>
       </div>
