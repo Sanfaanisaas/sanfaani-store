@@ -21,7 +21,7 @@ export default function Hero() {
             an approved quote and a fully tracked handover — every time.
           </p>
           <div className="mt-8 flex flex-wrap gap-4">
-            <a href="#shop" className="rounded-full bg-gold px-6 py-3 text-sm font-medium text-navy-900 hover:bg-gold/90">
+            <a href="shop" className="rounded-full bg-gold px-6 py-3 text-sm font-medium text-navy-900 hover:bg-gold/90">
               Browse devices
             </a>
             <a href="#waitlist" className="rounded-full border border-paper/30 px-6 py-3 text-sm font-medium text-paper hover:bg-paper/10">
