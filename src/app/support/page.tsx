@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { 
   ShieldCheck, 
   ShieldAlert, 
@@ -8,7 +8,10 @@ import {
   Loader2, 
   CheckCircle2, 
   UploadCloud, 
-  ArrowLeft 
+  ArrowLeft,
+  X,
+  FileText,
+  Image as ImageIcon
 } from "lucide-react";
 
 // Types matching your Mongoose Warranty Schema
@@ -27,8 +30,9 @@ export interface CreatedSupportTicket {
   customer: string;
   subject: string;
   relatedRepair: string;
-  status: string; // e.g. SUPPORT_TICKET_STATUS.OPEN
+  status: string;
   initialMessage: string;
+  attachmentsCount: number;
   createdAt: string;
 }
 
@@ -36,8 +40,8 @@ export interface CreatedSupportTicket {
 const MOCK_WARRANTIES: WarrantyRecord[] = [
   {
     _id: "66a98f12c8230911a2",
-    repair: "66b10298a4112001c1", // ObjectId for Repair
-    customer: "66a01092b3121009e5", // ObjectId for User
+    repair: "66b10298a4112001c1",
+    customer: "66a01092b3121009e5",
     deviceSummary: "iPhone 13 Pro - OLED Screen & Glass Replacement",
     issuedAt: "2026-06-15T08:00:00.000Z",
     expiresAt: "2026-09-15T08:00:00.000Z", // Active
@@ -60,6 +64,11 @@ const MOCK_WARRANTIES: WarrantyRecord[] = [
   },
 ];
 
+interface AttachmentFile {
+  file: File;
+  previewUrl: string | null;
+}
+
 export default function WarrantyClaimPage() {
   const [warranties] = useState<WarrantyRecord[]>(MOCK_WARRANTIES);
   
@@ -67,6 +76,11 @@ export default function WarrantyClaimPage() {
   const [selectedWarrantyId, setSelectedWarrantyId] = useState<string>("");
   const [issueCategory, setIssueCategory] = useState<string>("DEFECT");
   const [description, setDescription] = useState<string>("");
+
+  // File Upload State
+  const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [createdTicket, setCreatedTicket] = useState<CreatedSupportTicket | null>(null);
@@ -82,47 +96,96 @@ export default function WarrantyClaimPage() {
 
   const isExpired = selectedWarranty ? getDaysRemaining(selectedWarranty.expiresAt) <= 0 : false;
 
-  // Submit Handler -> Builds SupportTicket payload
+  // Handle File Change
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFileError(null);
+    const files = Array.from(e.target.files || []);
+
+    const validFiles: AttachmentFile[] = [];
+    const MAX_SIZE_MB = 10;
+
+    for (const file of files) {
+      if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+        setFileError(`File "${file.name}" exceeds the ${MAX_SIZE_MB}MB size limit.`);
+        continue;
+      }
+
+      // Generate preview for image files
+      const isImage = file.type.startsWith("image/");
+      const previewUrl = isImage ? URL.createObjectURL(file) : null;
+
+      validFiles.push({ file, previewUrl });
+    }
+
+    setAttachments((prev) => [...prev, ...validFiles]);
+    // Reset file input so re-uploading the same file works
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleRemoveAttachment = (indexToRemove: number) => {
+    setAttachments((prev) => {
+      const target = prev[indexToRemove];
+      if (target?.previewUrl) {
+        URL.revokeObjectURL(target.previewUrl);
+      }
+      return prev.filter((_, idx) => idx !== indexToRemove);
+    });
+  };
+
+  // Submit Handler
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedWarranty || isExpired) return;
 
     setIsSubmitting(true);
 
-    // Form constructed payload matching SupportTicket schema fields
-    const supportTicketPayload = {
-      customer: selectedWarranty.customer, // Logged-in user ID
-      subject: `[Warranty Claim] ${selectedWarranty.deviceSummary} (${issueCategory})`,
-      relatedRepair: selectedWarranty.repair, // Repair ObjectId
-      relatedOrder: null,
-      messages: [
-        {
-          body: description,
-        },
-      ],
-    };
+    // If sending via FormData (for file uploads to API):
+    const formData = new FormData();
+    formData.append("customer", selectedWarranty.customer);
+    formData.append("subject", `[Warranty Claim] ${selectedWarranty.deviceSummary} (${issueCategory})`);
+    formData.append("relatedRepair", selectedWarranty.repair);
+    formData.append("description", description);
 
-    console.log("Payload sending to backend POST /api/tickets:", supportTicketPayload);
+    attachments.forEach((att) => {
+      formData.append("attachments", att.file);
+    });
+
+    // Logging payload structure
+    console.log("Submitting Warranty Claim FormData:", {
+      customer: selectedWarranty.customer,
+      subject: `[Warranty Claim] ${selectedWarranty.deviceSummary} (${issueCategory})`,
+      relatedRepair: selectedWarranty.repair,
+      description,
+      filesCount: attachments.length,
+      fileNames: attachments.map((a) => a.file.name),
+    });
 
     // Simulate API Delay
     setTimeout(() => {
       setIsSubmitting(false);
       setCreatedTicket({
         ticketId: `TCK-${Math.floor(100000 + Math.random() * 900000)}`,
-        customer: supportTicketPayload.customer,
-        subject: supportTicketPayload.subject,
-        relatedRepair: supportTicketPayload.relatedRepair,
-        status: "OPEN", // Default from SUPPORT_TICKET_STATUS.OPEN
+        customer: selectedWarranty.customer,
+        subject: `[Warranty Claim] ${selectedWarranty.deviceSummary} (${issueCategory})`,
+        relatedRepair: selectedWarranty.repair,
+        status: "OPEN",
         initialMessage: description,
+        attachmentsCount: attachments.length,
         createdAt: new Date().toLocaleString(),
       });
     }, 1200);
   };
 
   const handleReset = () => {
+    // Revoke any generated previews
+    attachments.forEach((att) => {
+      if (att.previewUrl) URL.revokeObjectURL(att.previewUrl);
+    });
+    setAttachments([]);
     setCreatedTicket(null);
     setSelectedWarrantyId("");
     setDescription("");
+    setFileError(null);
   };
 
   return (
@@ -178,6 +241,10 @@ export default function WarrantyClaimPage() {
                 <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[10px]">
                   {createdTicket.status}
                 </span>
+              </div>
+              <div className="flex justify-between items-center border-b border-navy-900/10 pb-2">
+                <span className="text-mist font-medium">Attached Proofs:</span>
+                <span className="font-semibold text-ink">{createdTicket.attachmentsCount} File(s)</span>
               </div>
               <div>
                 <span className="text-mist font-medium block mb-1">Initial Message Body:</span>
@@ -312,16 +379,100 @@ export default function WarrantyClaimPage() {
               />
             </div>
 
-            {/* 5. Optional Attachment */}
+            {/* 5. Working File Attachment Component */}
             <div>
               <label className="block text-xs font-bold text-ink uppercase tracking-wider mb-2">
                 Attach Photo / Proof (Optional)
               </label>
-              <div className="border-2 border-dashed border-navy-900/10 rounded-xl p-4 text-center bg-paper hover:border-gold cursor-pointer transition-colors">
+              
+              {/* Hidden File Input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/png, image/jpeg, image/webp, video/mp4"
+                onChange={handleFileSelect}
+                disabled={!selectedWarranty || isExpired}
+                className="hidden"
+              />
+
+              {/* Clickable Dropzone Box */}
+              <div 
+                onClick={() => {
+                  if (selectedWarranty && !isExpired) {
+                    fileInputRef.current?.click();
+                  }
+                }}
+                className={`border-2 border-dashed rounded-xl p-4 text-center transition-colors ${
+                  !selectedWarranty || isExpired
+                    ? "opacity-50 cursor-not-allowed bg-slate-100 border-navy-900/10"
+                    : "bg-paper hover:border-gold border-navy-900/15 cursor-pointer"
+                }`}
+              >
                 <UploadCloud className="w-6 h-6 text-mist mx-auto mb-1" />
-                <p className="text-xs text-ink font-medium">Click to upload photo or video</p>
-                <p className="text-[10px] text-mist mt-0.5">PNG, JPG or MP4 up to 10MB</p>
+                <p className="text-xs text-ink font-medium">
+                  Click to upload photos or videos
+                </p>
+                <p className="text-[10px] text-mist mt-0.5">
+                  PNG, JPG, WEBP, or MP4 up to 10MB each
+                </p>
               </div>
+
+              {/* Validation Error Message */}
+              {fileError && (
+                <p className="text-xs text-rose-600 font-medium mt-1.5 flex items-center gap-1">
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  {fileError}
+                </p>
+              )}
+
+              {/* Selected Files List & Preview Badges */}
+              {attachments.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  <p className="text-[11px] font-bold text-mist uppercase tracking-wide">
+                    Attached Files ({attachments.length})
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {attachments.map((item, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between p-2 rounded-xl bg-paper border border-navy-900/10 text-xs"
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          {item.previewUrl ? (
+                            <img
+                              src={item.previewUrl}
+                              alt="preview"
+                              className="w-8 h-8 rounded-lg object-cover shrink-0 border border-navy-900/10"
+                            />
+                          ) : item.file.type.startsWith("image/") ? (
+                            <ImageIcon className="w-4 h-4 text-navy-900 shrink-0" />
+                          ) : (
+                            <FileText className="w-4 h-4 text-navy-900 shrink-0" />
+                          )}
+                          <div className="truncate">
+                            <p className="font-semibold text-ink truncate text-[11px]">
+                              {item.file.name}
+                            </p>
+                            <p className="text-[10px] text-mist">
+                              {(item.file.size / (1024 * 1024)).toFixed(2)} MB
+                            </p>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveAttachment(idx)}
+                          className="p-1 rounded-lg hover:bg-rose-100 text-mist hover:text-rose-600 transition-colors shrink-0 ml-1"
+                          title="Remove file"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Submit Action */}

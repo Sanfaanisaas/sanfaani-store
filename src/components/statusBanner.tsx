@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Wrench, Copy, Check, Smartphone } from "lucide-react";
+import { Copy, Check, Smartphone } from "lucide-react";
 
 interface StatusBannerProps {
   repairId: string;
@@ -35,12 +35,9 @@ export default function StatusBanner({
         {/* Left Side: Repair & Device Details */}
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
-            <span className="bg-white/10 text-gold text-xs font-mono font-bold px-2.5 py-0.5 rounded border border-white/10">
-              #{repairId}
-            </span>
             {customerName && (
               <span className="text-mist text-xs">
-                for <strong className="text-white">{customerName}</strong>
+                <strong className="text-white">{customerName}</strong>
               </span>
             )}
           </div>

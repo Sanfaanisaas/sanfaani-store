@@ -166,7 +166,7 @@ export default function QuoteApprovalCard({
               type="button"
               disabled={isSubmitting}
               onClick={handleApprove}
-              className="flex-1 bg-gold hover:bg-gold/95 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm disabled:opacity-50"
+              className="flex-1 bg-gold hover:bg-gold/95 text-gray/95 text-navy-900  font-semibold py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm disabled:opacity-50"
             >
               {isSubmitting ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
