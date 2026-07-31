@@ -11,7 +11,7 @@ export default function Navbar() {
     { label: "Home", href: "/" },
     { label: "Shop", href: "/shop" },
     { label: "Repair", href: "/repair/request" },
-    { label: "Waitlist", href: "/#waitlist" },
+    { label: "Support", href: "/support" },
   ];
 
   return (
@@ -24,7 +24,7 @@ export default function Navbar() {
         {/* Desktop Nav */}
         <nav className="hidden items-center gap-8 text-sm text-paper/80 md:flex">
           {navLinks.map((link) => (
-            <Link key={link.label} href={link.href} className="hover:text-paper">
+            <Link key={link.label} href={link.href} className="hover:text-paper transition-colors">
               {link.label}
             </Link>
           ))}
@@ -61,7 +61,7 @@ export default function Navbar() {
             className="fixed inset-0 top-[60px] z-40 bg-navy-900/60 backdrop-blur-sm md:hidden"
             onClick={() => setIsMenuOpen(false)}
           />
-          <div className="fixed top-[60px] right-0 z-50 h-[calc(100vh-60px)] w-64 transform bg-navy-900 p-6 shadow-xl transition-transform md:hidden">
+          <div className="fixed top-[60px] right-0 z-50 h-[calc(100vh-60px)] w-64 translate-x-0 bg-navy-900 p-6 shadow-xl transition-transform md:hidden">
             <nav className="flex flex-col gap-6">
               {navLinks.map((link) => (
                 <Link
