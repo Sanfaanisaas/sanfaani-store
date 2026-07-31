@@ -8,10 +8,10 @@ export default function Navbar() {
           Sanfaani<span className="text-gold">.</span>
         </Link>
         <nav className="hidden items-center gap-8 text-sm text-paper/80 md:flex">
-          <a href="/" className="hover:text-paper">Home</a>
-          <a href="/shop" className="hover:text-paper">Shop</a>
-          <a href="/repair" className="hover:text-paper">Repair</a>
-          <a href="#waitlist" className="hover:text-paper">Waitlist</a>
+          <Link href="/" className="hover:text-paper">Home</Link>
+          <Link href="/shop" className="hover:text-paper">Shop</Link>
+          <Link href="/repair/request" className="hover:text-paper">Repair</Link>
+          <Link href="/#waitlist" className="hover:text-paper">Waitlist</Link>
         </nav>
         <div className="flex items-center gap-3">
           <Link href="/login" className="text-sm font-medium text-paper/90 hover:text-paper">
