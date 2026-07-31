@@ -8,8 +8,9 @@ export default function Navbar() {
           Sanfaani<span className="text-gold">.</span>
         </Link>
         <nav className="hidden items-center gap-8 text-sm text-paper/80 md:flex">
+          <a href="/" className="hover:text-paper">Home</a>
           <a href="/shop" className="hover:text-paper">Shop</a>
-          <a href="#repair" className="hover:text-paper">Repair</a>
+          <a href="/repair" className="hover:text-paper">Repair</a>
           <a href="#waitlist" className="hover:text-paper">Waitlist</a>
         </nav>
         <div className="flex items-center gap-3">
