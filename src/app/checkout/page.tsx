@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Banknote, CreditCard, Package, Truck } from "lucide-react";
 import type { AppDispatch, RootState } from "@/lib/redux/store";
+import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 import { useSelector } from "react-redux";
 
@@ -194,6 +195,7 @@ export default function Checkout() {
           </aside>
         </div>
       </main>
+      <Footer />
     </>
   );
 }       
