@@ -1,8 +1,25 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import ProductCard from "./ProductCard";
-import { mockGadgets } from "@/lib/mockData/gadgets";
 
 export default function Hero() {
-  const featured = mockGadgets.slice(0, 2);
+  const [featured, setFeatured] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchFeatured = async () => {
+      try {
+        const response = await fetch("/api/products");
+        const result = await response.json();
+        if (result.success) {
+          setFeatured(result.data.slice(0, 2));
+        }
+      } catch (error) {
+        console.error("Failed to fetch hero products:", error);
+      }
+    };
+    fetchFeatured();
+  }, []);
 
   return (
     <section className="bg-navy-900 text-paper">
@@ -34,7 +51,7 @@ export default function Hero() {
           <div className="absolute -inset-6 rounded-3xl bg-gold/10" />
           <div className="relative flex flex-col gap-6 py-4">
             {featured.map((g, i) => (
-              <div key={g.id} className={i === 0 ? "-rotate-2" : "translate-x-8 rotate-2"}>
+              <div key={g.id || g._id} className={i === 0 ? "-rotate-2" : "translate-x-8 rotate-2"}>
                 <ProductCard gadget={g} />
               </div>
             ))}

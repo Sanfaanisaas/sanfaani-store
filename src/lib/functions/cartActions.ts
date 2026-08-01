@@ -1,4 +1,3 @@
-import type { MockGadget } from "@/lib/mockData/gadgets";
 import { addToCart } from "@/lib/redux/slices/cartSlice";
 import type { AppDispatch } from "@/lib/redux/store";
 
@@ -11,11 +10,11 @@ export interface CartItemPayload {
   quantity: number;
 }
 
-export function buildCartItem(gadget: MockGadget): CartItemPayload {
+export function buildCartItem(gadget: any): CartItemPayload {
   return {
-    variantId: gadget.id,
+    variantId: gadget.id || gadget._id,
     name: gadget.name,
-    price: gadget.price,
+    price: gadget.variants?.[0]?.price || gadget.price || 0,
     quantity: 1,
   };
 }
@@ -25,7 +24,7 @@ export function addGadgetToCart({
   isAuthenticated,
   dispatch,
 }: {
-  gadget: MockGadget;
+  gadget: any;
   isAuthenticated: boolean;
   dispatch: AppDispatch;
 }): { mode: CartStorageMode; item: CartItemPayload } {

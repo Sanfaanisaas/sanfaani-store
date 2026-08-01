@@ -1,32 +1,52 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Wrench } from "lucide-react";
+import { useMemo, useState, useEffect } from "react";
+import { Wrench, Loader2 } from "lucide-react";
 
 import RepairFilters from "@/components/RepairFilter";
 import RepairTable from "@/components/RepairTable";
-import { mockRepairs } from "@/lib/mockData/mockupRepair";
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 
 export default function RepairPage() {
+  const [repairs, setRepairs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("All");
   const [priority, setPriority] = useState("All");
 
+  useEffect(() => {
+    const fetchRepairs = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch("/api/repairs/queue");
+        const result = await response.json();
+        if (result.success) {
+          setRepairs(result.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch repairs:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchRepairs();
+  }, []);
+
   const filteredRepairs = useMemo(() => {
-    return mockRepairs.filter((repair) => {
+    return repairs.filter((repair) => {
       const searchTerm = search.toLowerCase();
 
       const matchesSearch =
-        repair.id.toLowerCase().includes(searchTerm) ||
-        repair.customer.toLowerCase().includes(searchTerm) ||
-        repair.device.toLowerCase().includes(searchTerm) ||
-        repair.issue.toLowerCase().includes(searchTerm);
+        (repair.id || repair._id || "").toLowerCase().includes(searchTerm) ||
+        (repair.customer?.name || "").toLowerCase().includes(searchTerm) ||
+        (repair.device?.model || "").toLowerCase().includes(searchTerm) ||
+        (repair.issueDescription || "").toLowerCase().includes(searchTerm);
 
       const matchesStatus =
         status === "All" || repair.status === status;
 
+      // Priority isn't in current repair schema but we'll leave filter for future compatibility
       const matchesPriority =
         priority === "All" || repair.priority === priority;
 
@@ -36,7 +56,7 @@ export default function RepairPage() {
         matchesPriority
       );
     });
-  }, [search, status, priority]);
+  }, [repairs, search, status, priority]);
 
   return (
     <>
@@ -67,7 +87,14 @@ export default function RepairPage() {
         />
 
         {/* Table */}
-        <RepairTable repairs={filteredRepairs} />
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-navy-900/10 text-mist">
+            <Loader2 className="w-8 h-8 animate-spin mb-4" />
+            <p>Loading repair queue...</p>
+          </div>
+        ) : (
+          <RepairTable repairs={filteredRepairs} />
+        )}
       </div>
     </main>
     <Footer />

@@ -1,9 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Sidebar from "@/components/sidebar";
 import { logoutRequest } from "@/lib/api/authApi";
 import Modal from "@/components/Modal";
+import { useSelector } from "react-redux";
+import type { RootState } from "@/lib/redux/store";
+import { useRouter } from "next/navigation";
 import { 
   Package, Users, Plus, Edit2, Trash2, Search, 
   TrendingUp, AlertTriangle, Menu, X, CreditCard 
@@ -23,16 +26,38 @@ const ADMIN_MOBILE_LINKS = [
   { label: "Financial Metrics", icon: CreditCard, active: false },
 ];
 
-const INITIAL_PRODUCTS: Product[] = [
-  { id: "SKU-901", name: "OLED Display Assembly (iPhone 13)", category: "Screens", price: 180000, stock: 14 },
-  { id: "SKU-902", name: "High Capacity Battery 5000mAh", category: "Batteries", price: 45000, stock: 22 },
-  { id: "SKU-903", name: "USB-C Fast Charging Port Module", category: "Components", price: 25000, stock: 3 },
-];
-
 export default function AdminDashboardPage() {
+  const router = useRouter();
+  const { user, initialized } = useSelector((state: RootState) => state.auth);
+
+  React.useEffect(() => {
+    if (initialized && (!user || user.role !== "admin")) {
+      router.replace("/operations/user");
+    }
+  }, [initialized, user, router]);
+
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch("/api/products");
+        const result = await response.json();
+        if (result.success) {
+          setProducts(result.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch products:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProducts();
+  }, []);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -203,40 +228,55 @@ export default function AdminDashboardPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-navy-900/10">
-                  {filteredProducts.map((p) => (
-                    <tr key={p.id} className="hover:bg-paper/50 transition">
-                      <td className="p-4 font-bold text-ink">{p.name}</td>
-                      <td className="p-4">
-                        <span className="bg-paper border border-navy-900/10 text-mist px-2 py-0.5 rounded text-[10px]">
-                          {p.category}
-                        </span>
-                      </td>
-                      <td className="p-4 font-bold text-ink">
-                        ₦{p.price.toLocaleString("en-NG", { minimumFractionDigits: 2 })}
-                      </td>
-                      <td className="p-4 font-bold">
-                        <span className={p.stock < 5 ? "text-amber-600" : "text-emerald-600"}>
-                          {p.stock} units
-                        </span>
-                      </td>
-                      <td className="p-4 text-right space-x-2">
-                        <button 
-                          type="button" 
-                          onClick={() => handleOpenEditModal(p)}
-                          className="text-mist hover:text-navy-900 p-1"
-                        >
-                          <Edit2 size={14} />
-                        </button>
-                        <button 
-                          type="button" 
-                          onClick={() => handleDelete(p.id)} 
-                          className="text-mist hover:text-rose-600 p-1"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                  {loading ? (
+                    <tr>
+                      <td colSpan={5} className="p-8 text-center text-mist">
+                        <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
+                        Loading products...
                       </td>
                     </tr>
-                  ))}
+                  ) : filteredProducts.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="p-8 text-center text-mist">
+                        No products found matching your search.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredProducts.map((p) => (
+                      <tr key={p.id || p._id} className="hover:bg-paper/50 transition">
+                        <td className="p-4 font-bold text-ink">{p.name}</td>
+                        <td className="p-4">
+                          <span className="bg-paper border border-navy-900/10 text-mist px-2 py-0.5 rounded text-[10px]">
+                            {p.category}
+                          </span>
+                        </td>
+                        <td className="p-4 font-bold text-ink">
+                          ₦{p.price.toLocaleString("en-NG", { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="p-4 font-bold">
+                          <span className={p.stock < 5 ? "text-amber-600" : "text-emerald-600"}>
+                            {p.stock} units
+                          </span>
+                        </td>
+                        <td className="p-4 text-right space-x-2">
+                          <button 
+                            type="button" 
+                            onClick={() => handleOpenEditModal(p)}
+                            className="text-mist hover:text-navy-900 p-1"
+                          >
+                            <Edit2 size={14} />
+                          </button>
+                          <button 
+                            type="button" 
+                            onClick={() => handleDelete(p.id || p._id)} 
+                            className="text-mist hover:text-rose-600 p-1"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

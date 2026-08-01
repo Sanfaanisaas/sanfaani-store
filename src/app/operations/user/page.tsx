@@ -1,43 +1,47 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Sidebar from "@/components/sidebar";
 import { logoutRequest } from "@/lib/api/authApi";
 import Link from "next/link";
 import { 
   ShoppingBag, Clock, CheckCircle2, 
-  Search, ArrowRight, Menu, X, CreditCard
+  Search, ArrowRight, Menu, X, CreditCard, Loader2
 } from "lucide-react";
 
 const USER_MOBILE_LINKS = [
   { label: "My Orders", icon: ShoppingBag, active: true },
 ];
 
-const MOCK_ORDERS = [
-  {
-    id: "ORD-2026-8841",
-    date: "28 Jul 2026",
-    item: "OLED Display Assembly (iPhone 13)",
-    status: "DELIVERED",
-    total: "129.99",
-  },
-  {
-    id: "REP-2026-3021",
-    date: "25 Jul 2026",
-    item: "Logic Board Diagnostic & Solder",
-    status: "IN_PROGRESS",
-    total: "85.00",
-  },
-];
-
 export default function UserDashboardPage() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
-  const filteredOrders = MOCK_ORDERS.filter(
+  useEffect(() => {
+    const fetchOrders = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch("/api/orders/my-orders");
+        const result = await response.json();
+        if (result.success) {
+          setOrders(result.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch orders:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchOrders();
+  }, []);
+
+  const filteredOrders = orders.filter(
     (order) =>
-      order.id.toLowerCase().includes(search.toLowerCase()) ||
-      order.item.toLowerCase().includes(search.toLowerCase())
+      order.id?.toLowerCase().includes(search.toLowerCase()) ||
+      order._id?.toLowerCase().includes(search.toLowerCase()) ||
+      order.items?.[0]?.variant?.product?.name?.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -130,27 +134,42 @@ export default function UserDashboardPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-navy-900/10">
-                  {filteredOrders.map((ord) => (
-                    <tr key={ord.id} className="hover:bg-paper/50 transition">
-                      <td className="p-4 font-mono font-bold text-ink">{ord.id}</td>
-                      <td className="p-4">
-                        <div className="font-bold text-ink">{ord.item}</div>
-                        <div className="text-[11px] text-mist">{ord.date}</div>
+                  {loading ? (
+                    <tr>
+                      <td colSpan={4} className="p-8 text-center text-mist">
+                        <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
+                        Loading orders...
                       </td>
-                      <td className="p-4">
-                        {ord.status === "DELIVERED" ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
-                            <CheckCircle2 size={12} /> Delivered
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
-                            <Clock size={12} /> Processing
-                          </span>
-                        )}
-                      </td>
-                      <td className="p-4 font-bold text-ink">{ord.total}</td>
                     </tr>
-                  ))}
+                  ) : filteredOrders.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="p-8 text-center text-mist">
+                        No orders found.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredOrders.map((ord) => (
+                      <tr key={ord.id || ord._id} className="hover:bg-paper/50 transition">
+                        <td className="p-4 font-mono font-bold text-ink">{ord.id || ord._id}</td>
+                        <td className="p-4">
+                          <div className="font-bold text-ink">{ord.items?.[0]?.variant?.product?.name || "Order Items"}</div>
+                          <div className="text-[11px] text-mist">{new Date(ord.createdAt).toLocaleDateString()}</div>
+                        </td>
+                        <td className="p-4">
+                          {ord.status === "DELIVERED" || ord.status === "completed" ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+                              <CheckCircle2 size={12} /> Delivered
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
+                              <Clock size={12} /> {ord.status}
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-4 font-bold text-ink">₦{ord.totalAmount?.toLocaleString() || ord.total?.toLocaleString()}</td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

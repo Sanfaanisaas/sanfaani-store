@@ -1,16 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ProductCard from "./ProductCard";
 import VerticalTabs from "./VerticalTabs";
-import { mockGadgets } from "@/lib/mockData/gadgets";
+import { Loader2 } from "lucide-react";
 
 export default function FeaturedGadgets() {
   const [activeCategory, setActiveCategory] = useState<"All" | "Laptops" | "Phones & Tablets" | "Accessories" | "Repair Services">("All");
+  const [gadgets, setGadgets] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch("/api/products");
+        const result = await response.json();
+        if (result.success) {
+          setGadgets(result.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch featured products:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProducts();
+  }, []);
 
   const filtered = activeCategory === "All"
-    ? mockGadgets
-    : mockGadgets.filter((g) => g.category === activeCategory);
+    ? gadgets
+    : gadgets.filter((g) => g.category === activeCategory);
 
   return (
     <section id="shop" className="mx-auto max-w-6xl px-6 py-20">

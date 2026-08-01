@@ -17,6 +17,63 @@ export default function Checkout() {
   const shipping = mode === "delivery" ? 15000 : 0;
   const total = subtotal + shipping;
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [conflictItems, setConflictItems] = useState<any[]>([]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setError(null);
+    setConflictItems([]);
+
+    const formData = new FormData(e.currentTarget as HTMLFormElement);
+    const orderData = {
+      mode,
+      paymentMethod,
+      shippingAddress: {
+        name: formData.get("name"),
+        phone: formData.get("phone"),
+        address: formData.get("address"),
+        city: formData.get("city"),
+        state: formData.get("state"),
+        zip: formData.get("zip"),
+      }
+    };
+
+    try {
+      const response = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orderData)
+      });
+
+      const result = await response.json();
+
+      if (response.status === 409) {
+        // Stock/Price conflict
+        setConflictItems(result.conflicts || []);
+        setError("Some items in your cart have changed price or are no longer in stock. Please review the changes below.");
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(result.message || "Failed to place order");
+      }
+
+      // Success - redirect to payment or confirmation
+      if (result.paymentUrl) {
+        window.location.href = result.paymentUrl;
+      } else {
+        window.location.href = `/checkout/confirmation?id=${result.orderId}`;
+      }
+    } catch (err: any) {
+      setError(err.message || "An unexpected error occurred");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <>
       <Navbar />
@@ -25,6 +82,23 @@ export default function Checkout() {
           <h1 className="mt-2 font-display text-3xl font-semibold text-ink">Complete your order</h1>
           <p className="mt-2 text-sm text-mist">Choose how you want to receive your selected gadgets.</p>
         </div>
+
+        {error && (
+          <div className="mb-8 p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl text-sm flex flex-col gap-2">
+            <div className="flex items-center gap-2 font-bold">
+              <AlertCircle className="w-4 h-4" />
+              <span>Checkout Error</span>
+            </div>
+            <p>{error}</p>
+            {conflictItems.length > 0 && (
+              <ul className="list-disc list-inside mt-2 space-y-1">
+                {conflictItems.map((c, i) => (
+                  <li key={i}>{c.message}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
 
         <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
           <section className="rounded-[2rem] border border-navy-900/10 bg-white p-6 shadow-sm sm:p-8">
@@ -69,7 +143,7 @@ export default function Checkout() {
               </div>
             </div>
 
-            <form className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label htmlFor="name" className="mb-1 block text-sm font-semibold text-ink">Full Name</label>
@@ -103,7 +177,7 @@ export default function Checkout() {
               </div>
 
               <div>
-                 <p>Select payment method</p>
+                 <p className="text-sm font-semibold text-ink">Select payment method</p>
                 <div className="mt-3 grid gap-3 sm:grid-cols-3">
                     <button
                         type="button"
@@ -118,7 +192,7 @@ export default function Checkout() {
                             <CreditCard className="h-4 w-4" />
                             <p className="font-semibold">Paystack</p>
                         </div>
-                        <p className="mt-1 text-sm">Pay securely using Paystack.</p>
+                        <p className="mt-1 text-sm text-mist">Pay securely using Paystack.</p>
                     </button>
                     <button
                         type="button"
@@ -133,7 +207,7 @@ export default function Checkout() {
                             <Banknote className="h-4 w-4" />
                             <p className="font-semibold">Bank Transfer</p>
                         </div>
-                        <p className="mt-1 text-sm">Transfer directly to our bank account.</p>
+                        <p className="mt-1 text-sm text-mist">Transfer directly to our bank.</p>
                     </button>
                     <button
                         type="button"
@@ -148,13 +222,24 @@ export default function Checkout() {
                             <Package className="h-4 w-4" />
                             <p className="font-semibold">Pay on Pickup</p>
                         </div>
-                        <p className="mt-1 text-sm">Pay when you collect your order.</p>
+                        <p className="mt-1 text-sm text-mist">Pay when you collect your order.</p>
                     </button>
                 </div>
               </div>
 
-              <button type="submit" className="w-full rounded-full bg-navy-900 px-5 py-3 text-sm font-semibold text-paper transition hover:bg-navy-800">
-                Proceed to payment
+              <button 
+                type="submit" 
+                disabled={isSubmitting || summaryItems.length === 0}
+                className="w-full rounded-full bg-navy-900 px-5 py-3 text-sm font-semibold text-paper transition hover:bg-navy-800 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Processing...</span>
+                  </>
+                ) : (
+                  <span>Proceed to payment</span>
+                )}
               </button>
             </form>
           </section>
@@ -168,7 +253,7 @@ export default function Checkout() {
               </span>
             </div>            
               {summaryItems.map((item) => (
-                <div key={item.name} className="flex items-center justify-between rounded-2xl border border-navy-900/10 bg-white px-4 py-3">
+                <div key={item.id} className="flex items-center justify-between rounded-2xl border border-navy-900/10 bg-white px-4 py-3">
                   <div>
                     <p className="font-semibold text-ink">{item.name}</p>
                     <p className="text-sm text-mist">Qty {item.quantity}</p>
@@ -198,4 +283,4 @@ export default function Checkout() {
       <Footer />
     </>
   );
-}       
+}

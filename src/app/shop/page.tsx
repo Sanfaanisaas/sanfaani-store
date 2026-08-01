@@ -1,15 +1,13 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useMemo, useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
-import { mockGadgets } from "@/lib/mockData/gadgets";
 import ProductCard from "@/components/ProductCard";
-import { ChevronRight , ChevronLeft} from 'lucide-react';
-
-const categoryOptions = ["All", ...Array.from(new Set(mockGadgets.map((gadget) => gadget.category)))];
-const conditionOptions = ["All", ...Array.from(new Set(mockGadgets.map((gadget) => gadget.condition)))];
+import { ChevronRight, ChevronLeft, Loader2 } from 'lucide-react';
 
 export default function Shop() {
+    const [gadgets, setGadgets] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [minPrice, setMinPrice] = useState("");
     const [maxPrice, setMaxPrice] = useState("");
@@ -18,25 +16,49 @@ export default function Shop() {
     const [page, setPage] = useState(1);
     const pageSize = 6;
 
+    useEffect(() => {
+        const fetchProducts = async () => {
+            setLoading(true);
+            try {
+                const response = await fetch("/api/products");
+                const result = await response.json();
+                if (result.success) {
+                    setGadgets(result.data);
+                }
+            } catch (error) {
+                console.error("Failed to fetch products:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchProducts();
+    }, []);
+
+    const categoryOptions = useMemo(() => ["All", ...Array.from(new Set(gadgets.map((g) => g.category)))], [gadgets]);
+    const conditionOptions = useMemo(() => ["All", ...Array.from(new Set(gadgets.map((g) => g.condition || "New")))], [gadgets]);
+
     const filteredGadgets = useMemo(() => {
         const min = Number(minPrice) || 0;
         const max = Number(maxPrice) || Number.POSITIVE_INFINITY;
         const keyword = search.trim().toLowerCase();
 
-        return mockGadgets.filter((gadget) => {
+        return gadgets.filter((gadget) => {
             const matchesSearch =
                 keyword.length === 0 ||
                 gadget.name.toLowerCase().includes(keyword) ||
-                gadget.spec.toLowerCase().includes(keyword) ||
+                (gadget.description && gadget.description.toLowerCase().includes(keyword)) ||
                 gadget.category.toLowerCase().includes(keyword);
             const matchesCategory = category === "All" || gadget.category === category;
-            const matchesCondition = condition === "All" || gadget.condition === condition;
-            const matchesMin = gadget.price >= min;
-            const matchesMax = gadget.price <= max;
+            const matchesCondition = condition === "All" || (gadget.condition || "New") === condition;
+            
+            // Handle variants price
+            const price = gadget.variants?.[0]?.price || gadget.price || 0;
+            const matchesMin = price >= min;
+            const matchesMax = price <= max;
 
             return matchesSearch && matchesCategory && matchesCondition && matchesMin && matchesMax;
         });
-    }, [category, condition, maxPrice, minPrice, search]);
+    }, [gadgets, category, condition, maxPrice, minPrice, search]);
 
     const totalPages = Math.max(1, Math.ceil(filteredGadgets.length / pageSize));
     const paginatedGadgets = filteredGadgets.slice((page - 1) * pageSize, page * pageSize);
@@ -166,7 +188,12 @@ export default function Shop() {
                             <span className="text-sm text-mist">{filteredGadgets.length} item(s) found</span>
                         </div>
 
-                        {filteredGadgets.length > 0 ? (
+                        {loading ? (
+                             <div className="flex flex-col items-center justify-center py-20 text-mist">
+                                <Loader2 className="w-8 h-8 animate-spin mb-4" />
+                                <p>Loading catalog...</p>
+                             </div>
+                        ) : filteredGadgets.length > 0 ? (
                             <>
                                 <div className="grid gap-4 md:grid-cols-2">
                                     {paginatedGadgets.map((gadget) => (

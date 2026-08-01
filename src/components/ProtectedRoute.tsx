@@ -7,9 +7,7 @@ import type { RootState } from "@/lib/redux/store";
 
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  let { isAuthenticated, initialized } = useSelector((state: RootState) => state.auth);
-  isAuthenticated = true
-  initialized = true
+  const { isAuthenticated, initialized, user } = useSelector((state: RootState) => state.auth);
 
   useEffect(() => {
     if (initialized && !isAuthenticated) {

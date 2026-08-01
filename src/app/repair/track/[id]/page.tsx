@@ -57,60 +57,74 @@ export default function RepairTrackingPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Simulate fetching data with a small timeout
-  const loadMockData = () => {
+  const loadRealData = async () => {
     setLoading(true);
     setError(null);
 
-    setTimeout(() => {
-      // Simulate success with mock data
-      setRepair({
-        ...MOCK_REPAIR_DATA,
-        id: repairId, // retain route ID
-      });
+    try {
+      const response = await fetch(`/api/repairs/${repairId}/track`);
+      const result = await response.json();
+      if (result.success) {
+        setRepair(result.data);
+      } else {
+        throw new Error(result.message || "Repair record unavailable.");
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to load repair details.");
+    } finally {
       setLoading(false);
-    }, 600);
+    }
   };
 
   useEffect(() => {
-    loadMockData();
+    loadRealData();
   }, [repairId]);
 
-  // Handler for Quote Approval (Mocked)
+  // Handler for Quote Approval
   const handleApproveQuote = async (quoteVersion: number) => {
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    try {
+      const quoteId = repair?.quote?.id || repair?.quote?._id;
+      if (!quoteId) return;
 
-    setRepair((prev) => {
-      if (!prev || !prev.quote) return prev;
-      return {
-        ...prev,
-        status: "IN_REPAIR",
-        updatedAt: new Date().toISOString(),
-        quote: {
-          ...prev.quote,
-          status: "APPROVED",
-        },
-      };
-    });
+      const response = await fetch(`/api/repairs/${repairId}/quote/${quoteId}/approve`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" }
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        loadRealData(); // Refresh state
+      } else {
+        alert(result.message || "Failed to approve quote");
+      }
+    } catch (err) {
+      console.error("Approval error:", err);
+      alert("An unexpected error occurred during approval");
+    }
   };
 
-  // Handler for Quote Decline (Mocked)
+  // Handler for Quote Decline
   const handleDeclineQuote = async (quoteVersion: number, reason?: string) => {
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    try {
+      const quoteId = repair?.quote?.id || repair?.quote?._id;
+      if (!quoteId) return;
 
-    setRepair((prev) => {
-      if (!prev || !prev.quote) return prev;
-      return {
-        ...prev,
-        status: "CANCELLED",
-        updatedAt: new Date().toISOString(),
-        quote: {
-          ...prev.quote,
-          status: "DECLINED",
-        },
-      };
-    });
+      const response = await fetch(`/api/repairs/${repairId}/quote/${quoteId}/decline`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason })
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        loadRealData(); // Refresh state
+      } else {
+        alert(result.message || "Failed to decline quote");
+      }
+    } catch (err) {
+      console.error("Decline error:", err);
+      alert("An unexpected error occurred");
+    }
   };
 
   // 1. Loading State
@@ -135,7 +149,7 @@ export default function RepairTrackingPage() {
           </div>
           <button
             type="button"
-            onClick={loadMockData}
+            onClick={loadRealData}
             className="inline-flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
           >
             <RefreshCw className="w-3.5 h-3.5" />

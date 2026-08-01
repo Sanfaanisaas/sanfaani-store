@@ -71,7 +71,7 @@ export default function RepairRequestForm() {
     return Object.keys(errors).length === 0;
   };
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
 
@@ -79,10 +79,29 @@ export default function RepairRequestForm() {
       device,
       issueDescription,
       privacyAcknowledged,
-      intakePhotos: photos, // Passing raw File[] array
+      intakePhotos: photos,
     };
 
-    dispatch(submitRepairRequest(payload));
+    const resultAction = await dispatch(submitRepairRequest(payload));
+    
+    // If photos exist, they need to be uploaded to the specific intake endpoint
+    if (submitRepairRequest.fulfilled.match(resultAction) && photos.length > 0) {
+      const repairId = resultAction.payload.data?.id || resultAction.payload.id;
+      if (repairId) {
+        const photoFormData = new FormData();
+        photos.forEach((file) => photoFormData.append("intakePhotos", file));
+        
+        try {
+          await fetch(`/api/repairs/${repairId}/intake`, {
+            method: "PATCH",
+            body: photoFormData,
+            // Header is auto-set by fetch for FormData
+          });
+        } catch (uploadError) {
+          console.error("Photo upload failed, but repair request was created:", uploadError);
+        }
+      }
+    }
   };
 
   if (isSuccess) {

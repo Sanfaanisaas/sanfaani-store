@@ -1,12 +1,24 @@
 export type InternalRepairStatus =
+  | "REQUESTED"
   | "INTAKE_PENDING"
+  | "INTAKE_SCHEDULED"
+  | "RECEIVED"
   | "IN_CUSTODY"
   | "DIAGNOSING"
   | "QUOTE_PENDING"
+  | "QUOTE_SENT"
+  | "AWAITING_APPROVAL"
+  | "APPROVED"
+  | "AWAITING_PARTS"
   | "IN_REPAIR"
+  | "PAUSED"
   | "QC_PENDING"
+  | "QC"
+  | "READY"
   | "READY_FOR_PICKUP"
+  | "HANDED_OVER"
   | "COMPLETED"
+  | "DECLINED"
   | "CANCELLED";
 
 export interface StatusMapping {
@@ -18,6 +30,7 @@ export interface StatusMapping {
 
 export const MAP_STATUS_TO_CUSTOMER = (status: InternalRepairStatus): StatusMapping => {
   switch (status) {
+    case "REQUESTED":
     case "INTAKE_PENDING":
       return {
         label: "Request Received",
@@ -25,6 +38,14 @@ export const MAP_STATUS_TO_CUSTOMER = (status: InternalRepairStatus): StatusMapp
         stepIndex: 0,
         badgeColor: "bg-blue-100 text-blue-800",
       };
+    case "INTAKE_SCHEDULED":
+      return {
+        label: "Intake Scheduled",
+        description: "An intake appointment has been scheduled for your device.",
+        stepIndex: 0,
+        badgeColor: "bg-blue-100 text-blue-800",
+      };
+    case "RECEIVED":
     case "IN_CUSTODY":
       return {
         label: "Device Checked In",
@@ -40,12 +61,16 @@ export const MAP_STATUS_TO_CUSTOMER = (status: InternalRepairStatus): StatusMapp
         badgeColor: "bg-purple-100 text-purple-800",
       };
     case "QUOTE_PENDING":
+    case "QUOTE_SENT":
+    case "AWAITING_APPROVAL":
       return {
         label: "Action Required: Quote Ready",
         description: "An inspection quote has been generated. Please review and approve to begin repairs.",
         stepIndex: 2,
         badgeColor: "bg-amber-100 text-amber-800 font-semibold animate-pulse",
       };
+    case "APPROVED":
+    case "AWAITING_PARTS":
     case "IN_REPAIR":
       return {
         label: "Repair in Progress",
@@ -53,13 +78,22 @@ export const MAP_STATUS_TO_CUSTOMER = (status: InternalRepairStatus): StatusMapp
         stepIndex: 3,
         badgeColor: "bg-sky-100 text-sky-800",
       };
+    case "PAUSED":
+      return {
+        label: "Repair Paused",
+        description: "Work on your device has been temporarily paused. We will resume shortly.",
+        stepIndex: 3,
+        badgeColor: "bg-amber-100 text-amber-800",
+      };
     case "QC_PENDING":
+    case "QC":
       return {
         label: "Final Quality Check",
         description: "Repair is complete. Our team is running quality assurance tests before sign-off.",
         stepIndex: 3,
         badgeColor: "bg-teal-100 text-teal-800",
       };
+    case "READY":
     case "READY_FOR_PICKUP":
       return {
         label: "Ready for Pickup",
@@ -67,6 +101,7 @@ export const MAP_STATUS_TO_CUSTOMER = (status: InternalRepairStatus): StatusMapp
         stepIndex: 4,
         badgeColor: "bg-emerald-100 text-emerald-800 font-semibold",
       };
+    case "HANDED_OVER":
     case "COMPLETED":
       return {
         label: "Handed Over & Closed",
@@ -74,6 +109,7 @@ export const MAP_STATUS_TO_CUSTOMER = (status: InternalRepairStatus): StatusMapp
         stepIndex: 4,
         badgeColor: "bg-gray-100 text-gray-800",
       };
+    case "DECLINED":
     case "CANCELLED":
       return {
         label: "Cancelled",
