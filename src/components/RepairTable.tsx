@@ -131,7 +131,7 @@ export default function RepairTable({ repairs = [], onUpdateRepair }: RepairTabl
             <tbody>
               {currentRepairs.map((repair) => (
                 <tr
-                  key={repair.id}
+                  key={repair._id ?? repair.id}
                   className="border-b border-gray-100 transition hover:bg-paper cursor-pointer"
                   onClick={() => handleOpenView(repair)}
                 >

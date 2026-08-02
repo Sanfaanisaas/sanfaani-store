@@ -12,7 +12,7 @@ export default function Hero() {
         const response = await fetch("/api/products");
         const result = await response.json();
         if (result.success) {
-          setFeatured(result.data.slice(0, 2));
+          setFeatured((result.data.products ?? result.data).slice(0, 2));
         }
       } catch (error) {
         console.error("Failed to fetch hero products:", error);

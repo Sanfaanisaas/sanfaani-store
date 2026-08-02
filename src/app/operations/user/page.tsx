@@ -177,7 +177,7 @@ export default function UserDashboardPage() {
             {/* Mobile Cards View */}
             <div className="block md:hidden divide-y divide-navy-900/10">
               {filteredOrders.map((ord) => (
-                <div key={ord.id} className="p-4 space-y-3">
+                <div key={ord._id ?? ord.id} className="p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="font-mono text-xs font-bold text-ink">{ord.id}</span>
                     <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">

@@ -17,7 +17,7 @@ export default function FeaturedGadgets() {
         const response = await fetch("/api/products");
         const result = await response.json();
         if (result.success) {
-          setGadgets(result.data);
+          setGadgets(result.data.products ?? result.data);
         }
       } catch (error) {
         console.error("Failed to fetch featured products:", error);
@@ -47,7 +47,7 @@ export default function FeaturedGadgets() {
         <VerticalTabs activeCategory={activeCategory} onChange={setActiveCategory} />
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((g) => (
-            <ProductCard key={g.id} gadget={g} />
+            <ProductCard key={g._id ?? g.id} gadget={g} />
           ))}
         </div>
       </div>

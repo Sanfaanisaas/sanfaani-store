@@ -23,7 +23,7 @@ export default function Shop() {
                 const response = await fetch("/api/products");
                 const result = await response.json();
                 if (result.success) {
-                    setGadgets(result.data);
+                    setGadgets(result.data.products ?? result.data);
                 }
             } catch (error) {
                 console.error("Failed to fetch products:", error);
@@ -197,7 +197,7 @@ export default function Shop() {
                             <>
                                 <div className="grid gap-4 md:grid-cols-2">
                                     {paginatedGadgets.map((gadget) => (
-                                        <ProductCard key={gadget.id} gadget={gadget} />
+                                        <ProductCard key={gadget._id ?? gadget.id} gadget={gadget} />
                                     ))}
                                 </div>
 

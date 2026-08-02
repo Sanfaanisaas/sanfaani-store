@@ -32,7 +32,7 @@ export default function CardDetail({ params }: { params: Promise<{ id: string }>
           const allResult = await allRes.json();
           if (allResult.success) {
             setSimilarProducts(
-              allResult.data.filter((item: any) => 
+              (allResult.data.products ?? allResult.data).filter((item: any) => 
                 item.category === result.data.category && (item.id || item._id) !== resolvedParams.id
               )
             );

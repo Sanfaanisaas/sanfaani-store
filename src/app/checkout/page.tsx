@@ -253,7 +253,7 @@ export default function Checkout() {
               </span>
             </div>            
               {summaryItems.map((item) => (
-                <div key={item.id} className="flex items-center justify-between rounded-2xl border border-navy-900/10 bg-white px-4 py-3">
+                <div key={item.variantId} className="flex items-center justify-between rounded-2xl border border-navy-900/10 bg-white px-4 py-3">
                   <div>
                     <p className="font-semibold text-ink">{item.name}</p>
                     <p className="text-sm text-mist">Qty {item.quantity}</p>

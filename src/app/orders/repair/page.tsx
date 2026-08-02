@@ -7,6 +7,7 @@ import RepairFilters from "@/components/RepairFilter";
 import RepairTable from "@/components/RepairTable";
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
+import axiosInstance from "@/lib/api/axiosInstance";
 
 export default function RepairPage() {
   const [repairs, setRepairs] = useState<any[]>([]);
@@ -19,8 +20,8 @@ export default function RepairPage() {
     const fetchRepairs = async () => {
       setLoading(true);
       try {
-        const response = await fetch("/api/repairs/queue");
-        const result = await response.json();
+        const response = await axiosInstance.get("/repairs/queue");
+        const result = response.data;
         if (result.success) {
           setRepairs(result.data);
         }

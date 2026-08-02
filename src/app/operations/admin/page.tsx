@@ -4,9 +4,6 @@ import React, { useState, useEffect } from "react";
 import Sidebar from "@/components/sidebar";
 import { logoutRequest } from "@/lib/api/authApi";
 import Modal from "@/components/Modal";
-import { useSelector } from "react-redux";
-import type { RootState } from "@/lib/redux/store";
-import { useRouter } from "next/navigation";
 import { 
   Package, Users, Plus, Edit2, Trash2, Search, 
   TrendingUp, AlertTriangle, Menu, X, CreditCard 
@@ -27,15 +24,6 @@ const ADMIN_MOBILE_LINKS = [
 ];
 
 export default function AdminDashboardPage() {
-  const router = useRouter();
-  const { user, initialized } = useSelector((state: RootState) => state.auth);
-
-  React.useEffect(() => {
-    if (initialized && (!user || user.role !== "admin")) {
-      router.replace("/operations/user");
-    }
-  }, [initialized, user, router]);
-
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,7 +36,7 @@ export default function AdminDashboardPage() {
         const response = await fetch("/api/products");
         const result = await response.json();
         if (result.success) {
-          setProducts(result.data);
+          setProducts(result.data.products ?? result.data);
         }
       } catch (error) {
         console.error("Failed to fetch products:", error);

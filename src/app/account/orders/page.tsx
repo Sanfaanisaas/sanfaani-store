@@ -89,7 +89,7 @@ export default function OrdersPage() {
             <div className="space-y-4">
               {orders.map((order)=>(
                 <button
-                  key={order.id}
+                  key={order._id ?? order.id}
                   onClick={()=>setSelectedOrder(order)}
                   className={`w-full text-left rounded-2xl border p-5 transition
                     ${
