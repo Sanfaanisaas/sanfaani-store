@@ -49,3 +49,19 @@ export const QUOTE_STATUS = {
   EXPIRED: "expired",
   SUPERSEDED: "superseded",
 } as const;
+
+export const USER_ROLES = {
+  CUSTOMER: "customer",
+  SALES_ADVISOR: "sales_advisor",
+  STORE_OPERATOR: "store_operator",
+  TECHNICIAN: "technician",
+  QC_OFFICER: "qc_officer",
+  INVENTORY_OFFICER: "inventory_officer",
+  SUPPORT_OFFICER: "support_officer",
+  FINANCE_OFFICER: "finance_officer",
+  MERCHANDISER: "merchandiser",
+  OPS_MANAGER: "ops_manager",
+  PRODUCT_ADMIN: "product_admin",
+  TECH_ADMIN: "tech_admin",
+  SUPER_ADMIN: "super_admin",
+} as const;
