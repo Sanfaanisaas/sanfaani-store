@@ -4,16 +4,30 @@ import React, { useState, useEffect } from "react";
 import Sidebar from "@/components/sidebar";
 import { logoutRequest } from "@/lib/api/authApi";
 import Modal from "@/components/Modal";
+import {
+  fetchProducts as apiFetchProducts,
+  createProduct as apiCreateProduct,
+  updateProduct as apiUpdateProduct,
+  deleteProduct as apiDeleteProduct,
+  type ApiProduct,
+} from "@/lib/api/productsApi";
 import { 
   Package, Users, Plus, Edit2, Trash2, Search, 
-  TrendingUp, AlertTriangle, Menu, X, CreditCard 
+  Menu, X, CreditCard, Loader2
 } from "lucide-react";
 
+/**
+ * Flat display shape used by the table.
+ * price / stock are derived from the first variant (read-only display);
+ * they cannot be set on the product document itself — those fields live on Variant.
+ */
 interface Product {
-  id: string;
+  _id: string;
   name: string;
   category: string;
+  /** Display only — sourced from first variant price, or 0 if no variants. */
   price: number;
+  /** Display only — sourced from first variant inStock, or 0 if no variants. */
   stock: number;
 }
 
@@ -23,6 +37,18 @@ const ADMIN_MOBILE_LINKS = [
   { label: "Financial Metrics", icon: CreditCard, active: false },
 ];
 
+/** Map the server document to the flat display shape the table expects. */
+function toDisplayProduct(p: ApiProduct): Product {
+  const firstVariant = p.variants?.[0];
+  return {
+    _id: p._id,
+    name: p.name,
+    category: p.category ?? "—",
+    price: firstVariant?.price ?? 0,
+    stock: firstVariant?.inStock ?? 0,
+  };
+}
+
 export default function AdminDashboardPage() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
@@ -30,88 +56,75 @@ export default function AdminDashboardPage() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    const fetchProducts = async () => {
+    const loadProducts = async () => {
       setLoading(true);
       try {
-        const response = await fetch("/api/products");
-        const result = await response.json();
-        if (result.success) {
-          setProducts(result.data.products ?? result.data);
-        }
+        const data = await apiFetchProducts();
+        setProducts(data.map(toDisplayProduct));
       } catch (error) {
         console.error("Failed to fetch products:", error);
       } finally {
         setLoading(false);
       }
     };
-    fetchProducts();
+    loadProducts();
   }, []);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   const [formData, setFormData] = useState({
-    id: "",
     name: "",
+    description: "",
     category: "Components",
-    price: "",
-    stock: "",
   });
 
   const handleOpenAddModal = () => {
     setEditingProduct(null);
-    setFormData({
-      id: `SKU-${Math.floor(100 + Math.random() * 900)}`,
-      name: "",
-      category: "Components",
-      price: "",
-      stock: "",
-    });
+    setFormData({ name: "", description: "", category: "Components" });
     setIsModalOpen(true);
   };
 
   const handleOpenEditModal = (product: Product) => {
     setEditingProduct(product);
     setFormData({
-      id: product.id,
       name: product.name,
+      description: "",
       category: product.category,
-      price: product.price.toString(),
-      stock: product.stock.toString(),
     });
     setIsModalOpen(true);
   };
 
-  // Developer-defined custom action passed into Modal
+  // Real API call — state is updated from the server response, not from form data.
   const handleSaveProduct = async () => {
-    // Example: Simulate an async API call delay
-    await new Promise((resolve) => setTimeout(resolve, 800));
-
-    const newProduct: Product = {
-      id: formData.id,
+    const payload = {
       name: formData.name,
+      description: formData.description,
       category: formData.category,
-      price: parseFloat(formData.price) || 0,
-      stock: parseInt(formData.stock, 10) || 0,
+      // slug is auto-derived server-side; pass name-based slug for new products
+      ...(editingProduct ? {} : { slug: formData.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "") }),
     };
 
     if (editingProduct) {
+      const updated = await apiUpdateProduct(editingProduct._id, payload);
       setProducts((prev) =>
-        prev.map((p) => (p.id === editingProduct.id ? newProduct : p))
+        prev.map((p) => (p._id === editingProduct._id ? toDisplayProduct(updated) : p))
       );
     } else {
-      setProducts((prev) => [newProduct, ...prev]);
+      const created = await apiCreateProduct(payload);
+      setProducts((prev) => [toDisplayProduct(created), ...prev]);
     }
   };
 
-  const handleDelete = (id: string) => {
-    setProducts((prev) => prev.filter((p) => p.id !== id));
+  const handleDelete = async (id: string) => {
+    await apiDeleteProduct(id);
+    setProducts((prev) => prev.filter((p) => p._id !== id));
   };
 
   const filteredProducts = products.filter(
     (p) =>
       p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.id.toLowerCase().includes(search.toLowerCase())
+      p._id.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -231,7 +244,7 @@ export default function AdminDashboardPage() {
                     </tr>
                   ) : (
                     filteredProducts.map((p) => (
-                      <tr key={p.id || p._id} className="hover:bg-paper/50 transition">
+                      <tr key={p._id} className="hover:bg-paper/50 transition">
                         <td className="p-4 font-bold text-ink">{p.name}</td>
                         <td className="p-4">
                           <span className="bg-paper border border-navy-900/10 text-mist px-2 py-0.5 rounded text-[10px]">
@@ -256,7 +269,7 @@ export default function AdminDashboardPage() {
                           </button>
                           <button 
                             type="button" 
-                            onClick={() => handleDelete(p.id || p._id)} 
+                            onClick={() => handleDelete(p._id)} 
                             className="text-mist hover:text-rose-600 p-1"
                           >
                             <Trash2 size={14} />
@@ -282,16 +295,6 @@ export default function AdminDashboardPage() {
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-mist mb-1">SKU Reference</label>
-            <input
-              type="text"
-              disabled
-              value={formData.id}
-              className="w-full bg-paper/50 border border-navy-900/10 rounded-xl px-3 py-2 text-xs text-mist font-mono cursor-not-allowed"
-            />
-          </div>
-
-          <div>
             <label className="block text-xs font-semibold text-mist mb-1">Product Title</label>
             <input
               type="text"
@@ -300,6 +303,18 @@ export default function AdminDashboardPage() {
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="w-full bg-paper border border-navy-900/10 rounded-xl px-3 py-2 text-xs text-ink focus:outline-none focus:border-gold"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-mist mb-1">Description</label>
+            <textarea
+              required
+              placeholder="Brief description of the product..."
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              rows={3}
+              className="w-full bg-paper border border-navy-900/10 rounded-xl px-3 py-2 text-xs text-ink focus:outline-none focus:border-gold resize-none"
             />
           </div>
 
@@ -317,32 +332,9 @@ export default function AdminDashboardPage() {
             </select>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-mist mb-1">Price (₦)</label>
-              <input
-                type="number"
-                step="0.01"
-                required
-                placeholder="0.00"
-                value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                className="w-full bg-paper border border-navy-900/10 rounded-xl px-3 py-2 text-xs text-ink focus:outline-none focus:border-gold"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-mist mb-1">Stock Units</label>
-              <input
-                type="number"
-                required
-                placeholder="0"
-                value={formData.stock}
-                onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                className="w-full bg-paper border border-navy-900/10 rounded-xl px-3 py-2 text-xs text-ink focus:outline-none focus:border-gold"
-              />
-            </div>
-          </div>
+          <p className="text-[10px] text-mist">
+            Price and stock are managed per-variant after product creation.
+          </p>
         </div>
       </Modal>
     </div>
