@@ -1,17 +1,29 @@
 "use client";
 
 import { useState } from "react";
-import { Banknote, CreditCard, Package, Truck } from "lucide-react";
-import type { AppDispatch, RootState } from "@/lib/redux/store";
+import { isAxiosError } from "axios";
+import { AlertCircle, Banknote, CreditCard, Loader2, Package, Truck } from "lucide-react";
+import type { RootState } from "@/lib/redux/store";
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 import { useSelector } from "react-redux";
+import axiosInstance from "@/lib/api/axiosInstance";
 
+interface ConflictItem {
+  variantSku: string;
+  type: "out_of_stock" | "price_changed";
+  message: string;
+  availableStock?: number;
+  oldPrice?: number;
+  newPrice?: number;
+}
 
 export default function Checkout() {
   const [mode, setMode] = useState<"delivery" | "pickup">("delivery");
-  const [paymentMethod, setPaymentMethod] = useState<"paystack" | "bank_transfer" | "pay_on_pickup">("paystack");
-  let summaryItems = useSelector((state: RootState) => state.cart);
+  const [paymentMethod, setPaymentMethod] = useState<
+    "paystack" | "bank_transfer" | "pay_on_pickup"
+  >("paystack");
+  const summaryItems = useSelector((state: RootState) => state.cart);
 
   const subtotal = summaryItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const shipping = mode === "delivery" ? 15000 : 0;
@@ -19,7 +31,7 @@ export default function Checkout() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [conflictItems, setConflictItems] = useState<any[]>([]);
+  const [conflictItems, setConflictItems] = useState<ConflictItem[]>([]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,46 +41,53 @@ export default function Checkout() {
 
     const formData = new FormData(e.currentTarget as HTMLFormElement);
     const orderData = {
-      mode,
       paymentMethod,
       shippingAddress: {
-        name: formData.get("name"),
-        phone: formData.get("phone"),
-        address: formData.get("address"),
-        city: formData.get("city"),
-        state: formData.get("state"),
-        zip: formData.get("zip"),
-      }
+        street: formData.get("street") as string,
+        city: formData.get("city") as string,
+        state: formData.get("state") as string,
+        postalCode: formData.get("postalCode") as string,
+        country: (formData.get("country") as string) || "Nigeria",
+      },
     };
 
     try {
-      const response = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(orderData)
-      });
+      // POST to the backend checkout endpoint via axiosInstance — attaches auth
+      // header automatically and goes through the Next.js /api rewrite proxy.
+      // items are sourced server-side from the user's cart, never sent from the client.
+      const response = await axiosInstance.post("/checkout", orderData);
+      const order = response.data.data;
 
-      const result = await response.json();
-
-      if (response.status === 409) {
-        // Stock/Price conflict
-        setConflictItems(result.conflicts || []);
-        setError("Some items in your cart have changed price or are no longer in stock. Please review the changes below.");
-        return;
-      }
-
-      if (!response.ok) {
-        throw new Error(result.message || "Failed to place order");
-      }
-
-      // Success - redirect to payment or confirmation
-      if (result.paymentUrl) {
-        window.location.href = result.paymentUrl;
+      if (paymentMethod === "paystack") {
+        // Initiate Paystack payment — backend returns the authorization URL
+        const payRes = await axiosInstance.post("/payments/initiate", {
+          orderId: order._id,
+        });
+        window.location.href = payRes.data.data.authorizationUrl;
       } else {
-        window.location.href = `/checkout/confirmation?id=${result.orderId}`;
+        // bank_transfer and pay_on_pickup orders are already created (pending).
+        // bank_transfer completes when staff verifies; pay_on_pickup completes at handover.
+        window.location.href = `/account/orders?highlight=${order._id}`;
       }
-    } catch (err: any) {
-      setError(err.message || "An unexpected error occurred");
+    } catch (err: unknown) {
+      if (isAxiosError(err)) {
+        if (err.response?.status === 409) {
+          // The backend returns { success: false, message, errors: ConflictItem[] }
+          setConflictItems(err.response.data.errors || []);
+          setError(
+            err.response.data.message ||
+              "Some items in your cart have changed. Please review the conflicts below."
+          );
+        } else {
+          setError(
+            err.response?.data?.message || "Failed to place order. Please try again."
+          );
+        }
+      } else if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("An unexpected error occurred");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -79,21 +98,39 @@ export default function Checkout() {
       <Navbar />
       <main className="mx-auto max-w-7xl px-6 py-12 sm:px-8 lg:px-10">
         <div className="mb-8">
-          <h1 className="mt-2 font-display text-3xl font-semibold text-ink">Complete your order</h1>
-          <p className="mt-2 text-sm text-mist">Choose how you want to receive your selected gadgets.</p>
+          <h1 className="mt-2 font-display text-3xl font-semibold text-ink">
+            Complete your order
+          </h1>
+          <p className="mt-2 text-sm text-mist">
+            Choose how you want to receive your selected gadgets.
+          </p>
         </div>
 
         {error && (
-          <div className="mb-8 p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl text-sm flex flex-col gap-2">
+          <div className="mb-8 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 flex flex-col gap-2">
             <div className="flex items-center gap-2 font-bold">
-              <AlertCircle className="w-4 h-4" />
+              <AlertCircle className="h-4 w-4" aria-hidden="true" />
               <span>Checkout Error</span>
             </div>
             <p>{error}</p>
             {conflictItems.length > 0 && (
-              <ul className="list-disc list-inside mt-2 space-y-1">
+              <ul className="mt-2 space-y-1 list-disc list-inside">
                 {conflictItems.map((c, i) => (
-                  <li key={i}>{c.message}</li>
+                  <li key={i}>
+                    {c.type === "out_of_stock" ? (
+                      <>
+                        <span className="font-semibold">{c.variantSku}</span> is now out of stock
+                        {c.availableStock !== undefined && c.availableStock > 0
+                          ? ` — only ${c.availableStock} unit(s) available`
+                          : ""}
+                      </>
+                    ) : (
+                      <>
+                        <span className="font-semibold">{c.variantSku}</span> price changed from{" "}
+                        ₦{c.oldPrice?.toLocaleString()} to ₦{c.newPrice?.toLocaleString()}
+                      </>
+                    )}
+                  </li>
                 ))}
               </ul>
             )}
@@ -104,7 +141,9 @@ export default function Checkout() {
           <section className="rounded-[2rem] border border-navy-900/10 bg-white p-6 shadow-sm sm:p-8">
             <div className="mb-6">
               <h2 className="text-xl font-semibold text-ink">Delivery details</h2>
-              <p className="mt-1 text-sm text-mist">We&apos;ll keep your information secure and use it only for this order.</p>
+              <p className="mt-1 text-sm text-mist">
+                We&apos;ll keep your information secure and use it only for this order.
+              </p>
             </div>
 
             <div className="mb-6 rounded-2xl border border-navy-900/10 bg-paper p-4">
@@ -120,7 +159,7 @@ export default function Checkout() {
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    <Truck className="h-4 w-4" />
+                    <Truck className="h-4 w-4" aria-hidden="true" />
                     <p className="font-semibold">Delivery</p>
                   </div>
                   <p className="mt-1 text-sm">Have it brought to your doorstep.</p>
@@ -135,7 +174,7 @@ export default function Checkout() {
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    <Package className="h-4 w-4" />
+                    <Package className="h-4 w-4" aria-hidden="true" />
                     <p className="font-semibold">Pickup</p>
                   </div>
                   <p className="mt-1 text-sm">Collect from our store at your convenience.</p>
@@ -146,95 +185,158 @@ export default function Checkout() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label htmlFor="name" className="mb-1 block text-sm font-semibold text-ink">Full Name</label>
-                  <input id="name" name="name" type="text" required className="w-full rounded-xl border border-navy-900/10 bg-paper px-4 py-2.5 text-sm text-ink outline-none transition focus:border-gold" />
+                  <label htmlFor="name" className="mb-1 block text-sm font-semibold text-ink">
+                    Full Name
+                  </label>
+                  <input
+                    id="name"
+                    name="name"
+                    type="text"
+                    required
+                    className="w-full rounded-xl border border-navy-900/10 bg-paper px-4 py-2.5 text-sm text-ink outline-none transition focus:border-gold"
+                  />
                 </div>
                 <div>
-                  <label htmlFor="phone" className="mb-1 block text-sm font-semibold text-ink">Phone Number</label>
-                  <input id="phone" name="phone" type="tel" required className="w-full rounded-xl border border-navy-900/10 bg-paper px-4 py-2.5 text-sm text-ink outline-none transition focus:border-gold" />
+                  <label htmlFor="phone" className="mb-1 block text-sm font-semibold text-ink">
+                    Phone Number
+                  </label>
+                  <input
+                    id="phone"
+                    name="phone"
+                    type="tel"
+                    required
+                    className="w-full rounded-xl border border-navy-900/10 bg-paper px-4 py-2.5 text-sm text-ink outline-none transition focus:border-gold"
+                  />
                 </div>
               </div>
 
+              {/* street maps to Order.shippingAddress.street */}
               <div>
-                <label htmlFor="address" className="mb-1 block text-sm font-semibold text-ink">Address</label>
-                <input id="address" name="address" type="text" required className="w-full rounded-xl border border-navy-900/10 bg-paper px-4 py-2.5 text-sm text-ink outline-none transition focus:border-gold" />
+                <label htmlFor="street" className="mb-1 block text-sm font-semibold text-ink">
+                  Street Address
+                </label>
+                <input
+                  id="street"
+                  name="street"
+                  type="text"
+                  required
+                  className="w-full rounded-xl border border-navy-900/10 bg-paper px-4 py-2.5 text-sm text-ink outline-none transition focus:border-gold"
+                />
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label htmlFor="city" className="mb-1 block text-sm font-semibold text-ink">City</label>
-                  <input id="city" name="city" type="text" required className="w-full rounded-xl border border-navy-900/10 bg-paper px-4 py-2.5 text-sm text-ink outline-none transition focus:border-gold" />
+                  <label htmlFor="city" className="mb-1 block text-sm font-semibold text-ink">
+                    City
+                  </label>
+                  <input
+                    id="city"
+                    name="city"
+                    type="text"
+                    required
+                    className="w-full rounded-xl border border-navy-900/10 bg-paper px-4 py-2.5 text-sm text-ink outline-none transition focus:border-gold"
+                  />
                 </div>
                 <div>
-                  <label htmlFor="state" className="mb-1 block text-sm font-semibold text-ink">State</label>
-                  <input id="state" name="state" type="text" required className="w-full rounded-xl border border-navy-900/10 bg-paper px-4 py-2.5 text-sm text-ink outline-none transition focus:border-gold" />
+                  <label htmlFor="state" className="mb-1 block text-sm font-semibold text-ink">
+                    State
+                  </label>
+                  <input
+                    id="state"
+                    name="state"
+                    type="text"
+                    required
+                    className="w-full rounded-xl border border-navy-900/10 bg-paper px-4 py-2.5 text-sm text-ink outline-none transition focus:border-gold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="postalCode" className="mb-1 block text-sm font-semibold text-ink">
+                    Postal Code
+                  </label>
+                  <input
+                    id="postalCode"
+                    name="postalCode"
+                    type="text"
+                    className="w-full rounded-xl border border-navy-900/10 bg-paper px-4 py-2.5 text-sm text-ink outline-none transition focus:border-gold"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="country" className="mb-1 block text-sm font-semibold text-ink">
+                    Country
+                  </label>
+                  <input
+                    id="country"
+                    name="country"
+                    type="text"
+                    defaultValue="Nigeria"
+                    required
+                    className="w-full rounded-xl border border-navy-900/10 bg-paper px-4 py-2.5 text-sm text-ink outline-none transition focus:border-gold"
+                  />
                 </div>
               </div>
 
               <div>
-                <label htmlFor="zip" className="mb-1 block text-sm font-semibold text-ink">ZIP Code</label>
-                <input id="zip" name="zip" type="text" required className="w-full rounded-xl border border-navy-900/10 bg-paper px-4 py-2.5 text-sm text-ink outline-none transition focus:border-gold" />
-              </div>
-
-              <div>
-                 <p className="text-sm font-semibold text-ink">Select payment method</p>
+                <p className="text-sm font-semibold text-ink">Select payment method</p>
                 <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                    <button
-                        type="button"
-                        onClick={() => setPaymentMethod("paystack")}
-                        className={`rounded-2xl border px-4 py-3 text-left transition ${
-                            paymentMethod === "paystack"
-                                ? "border-gold bg-gold/10 text-ink"
-                                : "border-navy-900/10 text-mist hover:border-gold/40"
-                        }`}
-                    >
-                        <div className="flex items-center gap-2">
-                            <CreditCard className="h-4 w-4" />
-                            <p className="font-semibold">Paystack</p>
-                        </div>
-                        <p className="mt-1 text-sm text-mist">Pay securely using Paystack.</p>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setPaymentMethod("bank_transfer")}
-                        className={`rounded-2xl border px-4 py-3 text-left transition ${
-                            paymentMethod === "bank_transfer"
-                                ? "border-gold bg-gold/10 text-ink  "
-                                : "border-navy-900/10 text-mist hover:border-gold/40"
-                        }`}
-                    >
-                        <div className="flex items-center gap-2">
-                            <Banknote className="h-4 w-4" />
-                            <p className="font-semibold">Bank Transfer</p>
-                        </div>
-                        <p className="mt-1 text-sm text-mist">Transfer directly to our bank.</p>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setPaymentMethod("pay_on_pickup")}
-                        className={`rounded-2xl border px-4 py-3 text-left transition ${
-                            paymentMethod === "pay_on_pickup"
-                                ? "border-gold bg-gold/10 text-ink"
-                                : "border-navy-900/10 text-mist hover:border-gold/40"
-                        }`}
-                    >
-                        <div className="flex items-center gap-2">
-                            <Package className="h-4 w-4" />
-                            <p className="font-semibold">Pay on Pickup</p>
-                        </div>
-                        <p className="mt-1 text-sm text-mist">Pay when you collect your order.</p>
-                    </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("paystack")}
+                    className={`rounded-2xl border px-4 py-3 text-left transition ${
+                      paymentMethod === "paystack"
+                        ? "border-gold bg-gold/10 text-ink"
+                        : "border-navy-900/10 text-mist hover:border-gold/40"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="h-4 w-4" aria-hidden="true" />
+                      <p className="font-semibold">Paystack</p>
+                    </div>
+                    <p className="mt-1 text-sm text-mist">Pay securely using Paystack.</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("bank_transfer")}
+                    className={`rounded-2xl border px-4 py-3 text-left transition ${
+                      paymentMethod === "bank_transfer"
+                        ? "border-gold bg-gold/10 text-ink"
+                        : "border-navy-900/10 text-mist hover:border-gold/40"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Banknote className="h-4 w-4" aria-hidden="true" />
+                      <p className="font-semibold">Bank Transfer</p>
+                    </div>
+                    <p className="mt-1 text-sm text-mist">Transfer directly to our bank.</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("pay_on_pickup")}
+                    className={`rounded-2xl border px-4 py-3 text-left transition ${
+                      paymentMethod === "pay_on_pickup"
+                        ? "border-gold bg-gold/10 text-ink"
+                        : "border-navy-900/10 text-mist hover:border-gold/40"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Package className="h-4 w-4" aria-hidden="true" />
+                      <p className="font-semibold">Pay on Pickup</p>
+                    </div>
+                    <p className="mt-1 text-sm text-mist">Pay when you collect your order.</p>
+                  </button>
                 </div>
               </div>
 
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 disabled={isSubmitting || summaryItems.length === 0}
-                className="w-full rounded-full bg-navy-900 px-5 py-3 text-sm font-semibold text-paper transition hover:bg-navy-800 disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex w-full items-center justify-center gap-2 rounded-full bg-navy-900 px-5 py-3 text-sm font-semibold text-paper transition hover:bg-navy-800 disabled:opacity-50"
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                     <span>Processing...</span>
                   </>
                 ) : (
@@ -245,25 +347,30 @@ export default function Checkout() {
           </section>
 
           <aside className="sm:p-8">
-            <div className="mt-6 border p-6 shadow-sm rounded-lg border-navy-900/10 bg-paper  space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-ink">Order summary</h2>
-              <span className="rounded-full px-3 py-1 text-sm font-semibold tracking-[0.24em] text-gold">
-                {summaryItems.length} item(s)
-              </span>
-            </div>            
+            <div className="mt-6 space-y-3 rounded-lg border border-navy-900/10 bg-paper p-6 shadow-sm">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-ink">Order summary</h2>
+                <span className="rounded-full px-3 py-1 text-sm font-semibold tracking-[0.24em] text-gold">
+                  {summaryItems.length} item(s)
+                </span>
+              </div>
               {summaryItems.map((item) => (
-                <div key={item.variantId} className="flex items-center justify-between rounded-2xl border border-navy-900/10 bg-white px-4 py-3">
+                <div
+                  key={item.variantId}
+                  className="flex items-center justify-between rounded-2xl border border-navy-900/10 bg-white px-4 py-3"
+                >
                   <div>
                     <p className="font-semibold text-ink">{item.name}</p>
                     <p className="text-sm text-mist">Qty {item.quantity}</p>
                   </div>
-                  <p className="text-sm font-semibold text-ink">₦{(item.price * item.quantity).toLocaleString()}</p>
+                  <p className="text-sm font-semibold text-ink">
+                    ₦{(item.price * item.quantity).toLocaleString()}
+                  </p>
                 </div>
               ))}
             </div>
 
-            <div className="mt-6 space-y-3 p-6 rounded-lg border bg-paper border-t border-navy-900/10 pt-5 text-sm text-mist">
+            <div className="mt-6 space-y-3 rounded-lg border border-navy-900/10 bg-paper p-6 pt-5 text-sm text-mist">
               <div className="flex items-center justify-between">
                 <span>Subtotal</span>
                 <span className="font-semibold text-ink">₦{subtotal.toLocaleString()}</span>
