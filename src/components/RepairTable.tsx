@@ -1,33 +1,88 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronLeft, ChevronRight, Eye, MoreHorizontal, Pencil, Wrench } from "lucide-react";
-import { Repair } from "@/app/orders/repair/types";
+import { useEffect, useState } from "react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  Pencil,
+  Wrench,
+} from "lucide-react";
+
+import type {
+  Repair,
+  RepairPriority,
+  RepairStatus,
+} from "@/app/orders/repair/types";
+
 import StatusBadge from "./StatusBadge";
-import Modal from "./Modal"; // Adjust path if your Modal is stored elsewhere
+import Modal from "./Modal";
 
 interface RepairTableProps {
   repairs: Repair[];
   onUpdateRepair?: (updatedRepair: Repair) => void;
 }
 
-export default function RepairTable({ repairs = [], onUpdateRepair }: RepairTableProps) {
-  // Local list state if updates aren't handled entirely by parent
-  const [repairList, setRepairList] = useState<Repair[]>(repairs);
+type RepairEditFormData = Pick<
+    Repair,
+    "status" | "priority" | "issue"
+>;
 
-  // Sync prop changes if parent updates
-  const currentRepairs = repairs.length > 0 ? repairs : repairList;
+const REPAIR_STATUSES: readonly RepairStatus[] = [
+  "Received",
+  "Diagnosing",
+  "Waiting Approval",
+  "Repairing",
+  "Ready",
+  "Delivered",
+  "Cancelled",
+];
 
-  // Modal Control States
-  const [modalMode, setModalMode] = useState<"view" | "edit" | null>(null);
-  const [selectedRepair, setSelectedRepair] = useState<Repair | null>(null);
+const REPAIR_PRIORITIES: readonly RepairPriority[] = [
+  "Low",
+  "Medium",
+  "High",
+];
 
-  // Form State for Edit Mode
-  const [editFormData, setEditFormData] = useState({
-    status: "",
-    priority: "",
-    issue: "",
-  });
+function isRepairStatus(
+    value: string,
+): value is RepairStatus {
+  return REPAIR_STATUSES.some(
+      (status) => status === value,
+  );
+}
+
+function isRepairPriority(
+    value: string,
+): value is RepairPriority {
+  return REPAIR_PRIORITIES.some(
+      (priority) => priority === value,
+  );
+}
+
+export default function RepairTable({
+                                      repairs,
+                                      onUpdateRepair,
+                                    }: RepairTableProps) {
+  const [repairList, setRepairList] =
+      useState<Repair[]>(repairs);
+
+  const [modalMode, setModalMode] =
+      useState<"view" | "edit" | null>(null);
+
+  const [selectedRepair, setSelectedRepair] =
+      useState<Repair | null>(null);
+
+  const [editFormData, setEditFormData] =
+      useState<RepairEditFormData>({
+        status: "Received",
+        priority: "Medium",
+        issue: "",
+      });
+
+  useEffect(() => {
+    setRepairList(repairs);
+  }, [repairs]);
 
   const handleOpenView = (repair: Repair) => {
     setSelectedRepair(repair);
@@ -36,11 +91,13 @@ export default function RepairTable({ repairs = [], onUpdateRepair }: RepairTabl
 
   const handleOpenEdit = (repair: Repair) => {
     setSelectedRepair(repair);
+
     setEditFormData({
       status: repair.status,
       priority: repair.priority,
       issue: repair.issue,
     });
+
     setModalMode("edit");
   };
 
@@ -49,10 +106,40 @@ export default function RepairTable({ repairs = [], onUpdateRepair }: RepairTabl
     setSelectedRepair(null);
   };
 
-  const handleEditSubmit = async () => {
-    if (!selectedRepair) return;
+  const handleStatusChange = (value: string) => {
+    if (!isRepairStatus(value)) {
+      return;
+    }
 
-    // Build updated object
+    setEditFormData((current) => ({
+      ...current,
+      status: value,
+    }));
+  };
+
+  const handlePriorityChange = (value: string) => {
+    if (!isRepairPriority(value)) {
+      return;
+    }
+
+    setEditFormData((current) => ({
+      ...current,
+      priority: value,
+    }));
+  };
+
+  const handleIssueChange = (value: string) => {
+    setEditFormData((current) => ({
+      ...current,
+      issue: value,
+    }));
+  };
+
+  const handleEditSubmit = async () => {
+    if (!selectedRepair) {
+      return;
+    }
+
     const updated: Repair = {
       ...selectedRepair,
       status: editFormData.status,
@@ -60,39 +147,43 @@ export default function RepairTable({ repairs = [], onUpdateRepair }: RepairTabl
       issue: editFormData.issue,
     };
 
-    // Callback to parent component if provided
     onUpdateRepair?.(updated);
 
-    // Update local state for instant UI update
-    setRepairList((prev) =>
-      prev.map((item) => (item.id === selectedRepair.id ? updated : item))
+    setRepairList((current) =>
+        current.map((repair) =>
+            repair.id === selectedRepair.id
+                ? updated
+                : repair,
+        ),
     );
+
+    handleCloseModal();
   };
 
-  if (currentRepairs.length === 0) {
+  if (repairList.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-white py-16 shadow-sm">
-        <div className="mb-4 rounded-full bg-paper p-4">
-          <Wrench className="h-8 w-8 text-mist" />
+        <div className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-white py-16 shadow-sm">
+          <div className="mb-4 rounded-full bg-paper p-4">
+            <Wrench className="h-8 w-8 text-mist" />
+          </div>
+
+          <h3 className="text-base font-semibold text-navy-900">
+            No repair requests found
+          </h3>
+
+          <p className="mt-2 text-sm text-mist">
+            Try adjusting your search or filters.
+          </p>
         </div>
-
-        <h3 className="text-base font-semibold text-navy-900">
-          No repair requests found
-        </h3>
-
-        <p className="mt-2 text-sm text-mist">
-          Try adjusting your search or filters.
-        </p>
-      </div>
     );
   }
 
   return (
-    <>
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="min-w-full">
-            <thead className="bg-paper">
+      <>
+        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead className="bg-paper">
               <tr className="border-b border-gray-200">
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-mist">
                   Repair ID
@@ -126,227 +217,283 @@ export default function RepairTable({ repairs = [], onUpdateRepair }: RepairTabl
                   Actions
                 </th>
               </tr>
-            </thead>
+              </thead>
 
-            <tbody>
-              {currentRepairs.map((repair) => (
-                <tr
-                  key={repair._id ?? repair.id}
-                  className="border-b border-gray-100 transition hover:bg-paper cursor-pointer"
-                  onClick={() => handleOpenView(repair)}
-                >
-                  <td className="px-4 py-3 text-sm font-medium text-navy-900">
-                    {repair.id}
-                  </td>
+              <tbody>
+              {repairList.map((repair) => (
+                  <tr
+                      key={repair.id}
+                      className="cursor-pointer border-b border-gray-100 transition hover:bg-paper"
+                      onClick={() => handleOpenView(repair)}
+                  >
+                    <td className="px-4 py-3 text-sm font-medium text-navy-900">
+                      {repair.id}
+                    </td>
 
-                  <td className="px-4 py-3 text-sm text-ink">
-                    {repair.customer}
-                  </td>
+                    <td className="px-4 py-3 text-sm text-ink">
+                      {repair.customer}
+                    </td>
 
-                  <td className="px-4 py-3 text-sm text-ink">
-                    {repair.device}
-                  </td>
+                    <td className="px-4 py-3 text-sm text-ink">
+                      {repair.device}
+                    </td>
 
-                  <td className="max-w-[220px] truncate px-4 py-3 text-sm text-mist">
-                    {repair.issue}
-                  </td>
+                    <td className="max-w-[220px] truncate px-4 py-3 text-sm text-mist">
+                      {repair.issue}
+                    </td>
 
-                  <td className="px-4 py-3">
+                    <td className="px-4 py-3">
                     <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
-                        repair.priority === "High" || repair.priority === "Urgent"
-                          ? "bg-red-100 text-red-700"
-                          : repair.priority === "Medium"
-                          ? "bg-yellow-100 text-yellow-700"
-                          : "bg-green-100 text-green-700"
-                      }`}
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
+                            repair.priority === "High"
+                                ? "bg-red-100 text-red-700"
+                                : repair.priority === "Medium"
+                                    ? "bg-yellow-100 text-yellow-700"
+                                    : "bg-green-100 text-green-700"
+                        }`}
                     >
                       {repair.priority}
                     </span>
-                  </td>
+                    </td>
 
-                  <td className="px-4 py-3">
-                    <StatusBadge status={repair.status} />
-                  </td>
+                    <td className="px-4 py-3">
+                      <StatusBadge status={repair.status} />
+                    </td>
 
-                  <td className="px-4 py-3 text-sm text-mist">
-                    {repair.submittedAt}
-                  </td>
+                    <td className="px-4 py-3 text-sm text-mist">
+                      {repair.submittedAt}
+                    </td>
 
-                  <td
-                    className="px-4 py-3"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div className="flex justify-end gap-1">
-                      <button
-                        type="button"
-                        onClick={() => handleOpenView(repair)}
-                        className="rounded-md p-1.5 transition hover:bg-paper"
-                        title="View Details"
-                      >
-                        <Eye size={16} className="text-navy-900" />
-                      </button>
+                    <td
+                        className="px-4 py-3"
+                        onClick={(event) =>
+                            event.stopPropagation()
+                        }
+                    >
+                      <div className="flex justify-end gap-1">
+                        <button
+                            type="button"
+                            onClick={() =>
+                                handleOpenView(repair)
+                            }
+                            className="rounded-md p-1.5 transition hover:bg-paper"
+                            title="View Details"
+                        >
+                          <Eye
+                              size={16}
+                              className="text-navy-900"
+                          />
+                        </button>
 
-                      <button
-                        type="button"
-                        onClick={() => handleOpenEdit(repair)}
-                        className="rounded-md p-1.5 transition hover:bg-paper"
-                        title="Edit Request"
-                      >
-                        <Pencil size={16} className="text-gold" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                        <button
+                            type="button"
+                            onClick={() =>
+                                handleOpenEdit(repair)
+                            }
+                            className="rounded-md p-1.5 transition hover:bg-paper"
+                            title="Edit Request"
+                        >
+                          <Pencil
+                              size={16}
+                              className="text-gold"
+                          />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
               ))}
-            </tbody>
-          </table>
-        </div>
+              </tbody>
+            </table>
+          </div>
 
-        {/* Pagination */}
-        <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3">
-          <p className="text-xs text-mist">
-            Showing{" "}
-            <span className="font-medium text-ink">
-              1-{currentRepairs.length}
+          <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3">
+            <p className="text-xs text-mist">
+              Showing{" "}
+              <span className="font-medium text-ink">
+              1-{repairList.length}
             </span>{" "}
-            of{" "}
-            <span className="font-medium text-ink">
-              {currentRepairs.length}
+              of{" "}
+              <span className="font-medium text-ink">
+              {repairList.length}
             </span>{" "}
-            repairs
-          </p>
+              repairs
+            </p>
 
-          <div className="flex items-center gap-2">
-            <button
-              disabled
-              className="rounded-md border border-gray-300 p-1.5 text-xs text-ink transition hover:bg-paper disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <ChevronLeft size={16} />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                  type="button"
+                  disabled
+                  className="rounded-md border border-gray-300 p-1.5 text-xs text-ink transition hover:bg-paper disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <ChevronLeft size={16} />
+              </button>
 
-            <button className="rounded-md bg-gold px-3 py-1.5 text-xs font-medium text-white">
-              1
-            </button>
+              <button
+                  type="button"
+                  className="rounded-md bg-gold px-3 py-1.5 text-xs font-medium text-white"
+              >
+                1
+              </button>
 
-            <button
-              disabled
-              className="rounded-md border border-gray-300 p-1.5 text-xs text-ink transition hover:bg-paper disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <ChevronRight size={16} />
-            </button>
+              <button
+                  type="button"
+                  disabled
+                  className="rounded-md border border-gray-300 p-1.5 text-xs text-ink transition hover:bg-paper disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* VIEW MODAL (No onSubmit prop -> renders read-only details) */}
-      <Modal
-        isOpen={modalMode === "view"}
-        onClose={handleCloseModal}
-        title={`Repair Ticket Details (${selectedRepair?.id})`}
-      >
-        {selectedRepair && (
-          <div className="space-y-3 text-xs">
-            <div className="grid grid-cols-2 gap-2 rounded-xl bg-paper p-3 border border-navy-900/10">
-              <div>
-                <span className="text-mist font-medium block">Customer</span>
-                <span className="font-bold text-navy-900">{selectedRepair.customer}</span>
-              </div>
-              <div>
-                <span className="text-mist font-medium block">Device</span>
-                <span className="font-bold text-navy-900">{selectedRepair.device}</span>
-              </div>
-            </div>
+        <Modal
+            isOpen={modalMode === "view"}
+            onClose={handleCloseModal}
+            title={`Repair Ticket Details (${selectedRepair?.id ?? ""})`}
+        >
+          {selectedRepair && (
+              <div className="space-y-3 text-xs">
+                <div className="grid grid-cols-2 gap-2 rounded-xl border border-navy-900/10 bg-paper p-3">
+                  <div>
+                <span className="block font-medium text-mist">
+                  Customer
+                </span>
 
-            <div className="grid grid-cols-2 gap-2 rounded-xl bg-paper p-3 border border-navy-900/10">
-              <div>
-                <span className="text-mist font-medium block">Status</span>
-                <StatusBadge status={selectedRepair.status} />
-              </div>
-              <div>
-                <span className="text-mist font-medium block">Priority</span>
-                <span className="font-semibold text-ink">{selectedRepair.priority}</span>
-              </div>
-            </div>
+                    <span className="font-bold text-navy-900">
+                  {selectedRepair.customer}
+                </span>
+                  </div>
 
-            <div className="rounded-xl bg-paper p-3 border border-navy-900/10 space-y-1">
-              <span className="text-mist font-medium block">Issue Description</span>
-              <p className="text-ink leading-relaxed">{selectedRepair.issue}</p>
-            </div>
+                  <div>
+                <span className="block font-medium text-mist">
+                  Device
+                </span>
 
-            <div className="text-right text-[11px] text-mist pt-1">
-              Submitted on: {selectedRepair.submittedAt}
-            </div>
-          </div>
-        )}
-      </Modal>
+                    <span className="font-bold text-navy-900">
+                  {selectedRepair.device}
+                </span>
+                  </div>
+                </div>
 
-      {/* EDIT MODAL (Has onSubmit prop -> renders form with submit button) */}
-      <Modal
-        isOpen={modalMode === "edit"}
-        onClose={handleCloseModal}
-        title={`Edit Repair Ticket #${selectedRepair?.id}`}
-        onSubmit={handleEditSubmit}
-        submitText="Save Changes"
-      >
-        {selectedRepair && (
-          <div className="space-y-4 text-xs">
-            {/* Status Select */}
-            <div>
-              <label className="block font-semibold text-mist mb-1">
-                Status
-              </label>
-              <select
-                value={editFormData.status}
-                onChange={(e) =>
-                  setEditFormData({ ...editFormData, status: e.target.value })
-                }
-                className="w-full bg-paper border border-navy-900/10 rounded-xl px-3 py-2 text-ink focus:outline-none focus:border-gold"
-              >
-                <option value="Pending">Pending</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Awaiting Parts">Awaiting Parts</option>
-                <option value="Completed">Completed</option>
-                <option value="Cancelled">Cancelled</option>
-              </select>
-            </div>
+                <div className="grid grid-cols-2 gap-2 rounded-xl border border-navy-900/10 bg-paper p-3">
+                  <div>
+                <span className="mb-1 block font-medium text-mist">
+                  Status
+                </span>
 
-            {/* Priority Select */}
-            <div>
-              <label className="block font-semibold text-mist mb-1">
-                Priority
-              </label>
-              <select
-                value={editFormData.priority}
-                onChange={(e) =>
-                  setEditFormData({ ...editFormData, priority: e.target.value })
-                }
-                className="w-full bg-paper border border-navy-900/10 rounded-xl px-3 py-2 text-ink focus:outline-none focus:border-gold"
-              >
-                <option value="Low">Low</option>
-                <option value="Medium">Medium</option>
-                <option value="High">High</option>
-                <option value="Urgent">Urgent</option>
-              </select>
-            </div>
+                    <StatusBadge
+                        status={selectedRepair.status}
+                    />
+                  </div>
 
-            {/* Editable Issue Description */}
-            <div>
-              <label className="block font-semibold text-mist mb-1">
+                  <div>
+                <span className="block font-medium text-mist">
+                  Priority
+                </span>
+
+                    <span className="font-semibold text-ink">
+                  {selectedRepair.priority}
+                </span>
+                  </div>
+                </div>
+
+                <div className="space-y-1 rounded-xl border border-navy-900/10 bg-paper p-3">
+              <span className="block font-medium text-mist">
                 Issue Description
-              </label>
-              <textarea
-                rows={3}
-                value={editFormData.issue}
-                onChange={(e) =>
-                  setEditFormData({ ...editFormData, issue: e.target.value })
-                }
-                className="w-full bg-paper border border-navy-900/10 rounded-xl px-3 py-2 text-ink focus:outline-none focus:border-gold resize-none"
-              />
-            </div>
-          </div>
-        )}
-      </Modal>
-    </>
+              </span>
+
+                  <p className="leading-relaxed text-ink">
+                    {selectedRepair.issue}
+                  </p>
+                </div>
+
+                <div className="pt-1 text-right text-[11px] text-mist">
+                  Submitted on: {selectedRepair.submittedAt}
+                </div>
+              </div>
+          )}
+        </Modal>
+
+        <Modal
+            isOpen={modalMode === "edit"}
+            onClose={handleCloseModal}
+            title={`Edit Repair Ticket #${selectedRepair?.id ?? ""}`}
+            onSubmit={handleEditSubmit}
+            submitText="Save Changes"
+        >
+          {selectedRepair && (
+              <div className="space-y-4 text-xs">
+                <div>
+                  <label
+                      htmlFor="repair-status"
+                      className="mb-1 block font-semibold text-mist"
+                  >
+                    Status
+                  </label>
+
+                  <select
+                      id="repair-status"
+                      value={editFormData.status}
+                      onChange={(event) =>
+                          handleStatusChange(event.target.value)
+                      }
+                      className="w-full rounded-xl border border-navy-900/10 bg-paper px-3 py-2 text-ink focus:border-gold focus:outline-none"
+                  >
+                    {REPAIR_STATUSES.map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label
+                      htmlFor="repair-priority"
+                      className="mb-1 block font-semibold text-mist"
+                  >
+                    Priority
+                  </label>
+
+                  <select
+                      id="repair-priority"
+                      value={editFormData.priority}
+                      onChange={(event) =>
+                          handlePriorityChange(
+                              event.target.value,
+                          )
+                      }
+                      className="w-full rounded-xl border border-navy-900/10 bg-paper px-3 py-2 text-ink focus:border-gold focus:outline-none"
+                  >
+                    {REPAIR_PRIORITIES.map((priority) => (
+                        <option key={priority} value={priority}>
+                          {priority}
+                        </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label
+                      htmlFor="repair-issue"
+                      className="mb-1 block font-semibold text-mist"
+                  >
+                    Issue Description
+                  </label>
+
+                  <textarea
+                      id="repair-issue"
+                      rows={3}
+                      value={editFormData.issue}
+                      onChange={(event) =>
+                          handleIssueChange(event.target.value)
+                      }
+                      className="w-full resize-none rounded-xl border border-navy-900/10 bg-paper px-3 py-2 text-ink focus:border-gold focus:outline-none"
+                  />
+                </div>
+              </div>
+          )}
+        </Modal>
+      </>
   );
 }
