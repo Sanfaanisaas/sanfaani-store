@@ -5,8 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { AppDispatch, RootState } from "@/lib/redux/store";
-import { loginUser } from "@/lib/redux/slices/authSlice";
-import { syncCartFromStorage } from "@/lib/redux/slices/cartSlice";
+import { loginUser, mergeGuestCart } from "@/lib/redux/slices/authSlice";
 
 export default function LoginPage() {
   const dispatch = useDispatch<AppDispatch>();
@@ -20,16 +19,12 @@ export default function LoginPage() {
     e.preventDefault();
     const result = await dispatch(loginUser({ email, password }));
     if (loginUser.fulfilled.match(result)) {
+      // Merge any guest cart items into the server-side cart.
+      // mergeGuestCart reads localStorage, calls POST /cart/merge, and clears
+      // localStorage on success — skip it entirely if guestCart is empty.
       const storedCart = typeof window !== "undefined" ? window.localStorage.getItem("guestCart") : null;
-
       if (storedCart) {
-        try {
-          const parsedCart = JSON.parse(storedCart);
-          dispatch(syncCartFromStorage(parsedCart));
-          window.localStorage.removeItem("guestCart");
-        } catch {
-          window.localStorage.removeItem("guestCart");
-        }
+        await dispatch(mergeGuestCart());
       }
 
       router.push("/account");

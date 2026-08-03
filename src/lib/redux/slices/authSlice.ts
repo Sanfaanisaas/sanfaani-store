@@ -8,6 +8,7 @@ import {
   RegisterPayload,
   LoginPayload,
 } from "@/lib/api/authApi";
+import axiosInstance from "@/lib/api/axiosInstance";
 
 export interface AuthUser {
   id: string;
@@ -78,6 +79,41 @@ export const refreshSession = createAsyncThunk(
 export const logoutUser = createAsyncThunk("auth/logoutUser", async () => {
   await logoutRequest();
 });
+
+/**
+ * Merges the guest localStorage cart into the authenticated user's server-side cart.
+ * Call this immediately after loginUser.fulfilled if guestCart is non-empty.
+ * Clears localStorage guestCart on success.
+ */
+export const mergeGuestCart = createAsyncThunk(
+  "auth/mergeGuestCart",
+  async (_, { rejectWithValue }) => {
+    if (typeof window === "undefined") return;
+
+    const raw = window.localStorage.getItem("guestCart");
+    if (!raw) return; // nothing to merge
+
+    let guestItems: { variantId: string; quantity: number }[] = [];
+    try {
+      const parsed = JSON.parse(raw);
+      guestItems = parsed
+        .filter((item: any) => item.variantId && item.quantity)
+        .map((item: any) => ({ variantId: item.variantId, quantity: item.quantity }));
+    } catch {
+      window.localStorage.removeItem("guestCart");
+      return;
+    }
+
+    if (guestItems.length === 0) return;
+
+    try {
+      await axiosInstance.post("/cart/merge", { guestItems });
+      window.localStorage.removeItem("guestCart");
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, "Cart merge failed"));
+    }
+  }
+);
 
 const authSlice = createSlice({
   name: "auth",
