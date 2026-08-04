@@ -1,7 +1,8 @@
 "use client";
 
-import React, { ElementType } from "react";
+import React, { ElementType } from "react"; 
 import { LogOut } from "lucide-react";
+
 
 export interface SidebarLink {
   label: string;
