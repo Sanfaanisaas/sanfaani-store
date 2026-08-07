@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") ?? "http://localhost:5000";
+const backendUrl = process.env.BACKEND_URL?.replace(/\/+$/, "");
 
 const nextConfig: NextConfig = {
   async redirects() {
@@ -13,10 +13,14 @@ const nextConfig: NextConfig = {
     ];
   },
   async rewrites() {
+    if (!backendUrl) {
+      throw new Error("BACKEND_URL is not configured");
+    }
+
     return [
       {
         source: "/api/:path*",
-        destination: `${BACKEND_URL}/api/:path*`,
+        destination: `${backendUrl}/api/:path*`,
       },
     ];
   },
