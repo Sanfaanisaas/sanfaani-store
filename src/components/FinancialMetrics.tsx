@@ -10,8 +10,6 @@ import {
 } from "chart.js";
 import { Pie } from "react-chartjs-2";
 import {
-  ArrowDownRight,
-  ArrowUpRight,
   Banknote,
   CreditCard,
   ReceiptText,
@@ -111,9 +109,7 @@ export default function FinancialMetrics() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {summaryMetrics.map(({ label, value, change, trend, icon: Icon }) => {
-          const isPositive = trend === "up";
-
+        {summaryMetrics.map(({ label, value, icon: Icon }) => {
           return (
             <section key={label} className="rounded-2xl border border-navy-900/10 bg-white p-5 shadow-sm">
               <div className="flex items-start justify-between gap-3">

@@ -3,18 +3,20 @@
 import { useMemo, useState } from "react";
 import Sidebar from "@/components/sidebar";
 import { logoutRequest } from "@/lib/api/authApi";
-import { Package, Users, Menu, X, CreditCard } from "lucide-react";
+import { Package, Users, Menu, X, CreditCard, ServerCog, type LucideIcon } from "lucide-react";
 import InverntoryCrud from "@/components/InventroyCRUD";
 import UserDirectory from "@/components/userDirectory";
 import FinancialMetrics from "@/components/FinancialMetrics";
+import TechnicalOperations from "@/components/TechnicalOperations";
 
-type AdminPage = "Inventory CRUD" | "User Directory" | "Financial Metrics";
+type AdminPage = "Inventory CRUD" | "User Directory" | "Financial Metrics" | "Technical Operations";
 
 const ADMIN_NAV_ITEMS = [
   { label: "Inventory CRUD", icon: Package },
   { label: "User Directory", icon: Users },
   { label: "Financial Metrics", icon: CreditCard },
-] satisfies Array<{ label: AdminPage; icon: typeof Package }>;
+  { label: "Technical Operations", icon: ServerCog },
+] satisfies Array<{ label: AdminPage; icon: LucideIcon }>;
 
 export default function AdminDashboardPage(){
   const [page,setPage] = useState<AdminPage>("Inventory CRUD")
@@ -67,6 +69,7 @@ export default function AdminDashboardPage(){
         {page === "Inventory CRUD" && <InverntoryCrud />}
         {page === "User Directory" && <UserDirectory /> }
         {page === "Financial Metrics" && <FinancialMetrics /> }
+        {page === "Technical Operations" && <TechnicalOperations /> }
         </div>
 
       
