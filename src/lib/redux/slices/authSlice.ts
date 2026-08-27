@@ -9,6 +9,7 @@ import {
   LoginPayload,
 } from "@/lib/api/authApi";
 import axiosInstance from "@/lib/api/axiosInstance";
+import { CartItem } from "@/lib/redux/slices/cartSlice";
 
 export interface AuthUser {
   id: string;
@@ -51,7 +52,7 @@ export const registerUser = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(extractErrorMessage(err, "Registration failed"));
     }
-  }
+  },
 );
 
 export const loginUser = createAsyncThunk(
@@ -62,7 +63,7 @@ export const loginUser = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(extractErrorMessage(err, "Invalid credentials"));
     }
-  }
+  },
 );
 
 export const refreshSession = createAsyncThunk(
@@ -73,7 +74,7 @@ export const refreshSession = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(extractErrorMessage(err, "Not logged in"));
     }
-  }
+  },
 );
 
 export const logoutUser = createAsyncThunk("auth/logoutUser", async () => {
@@ -82,8 +83,8 @@ export const logoutUser = createAsyncThunk("auth/logoutUser", async () => {
 
 /**
  * Merges the guest localStorage cart into the authenticated user's server-side cart.
- * Call this immediately after loginUser.fulfilled if guestCart is non-empty.
- * Clears localStorage guestCart on success.
+ * Call this immediately after loginUser.fulfilled or refreshSession.fulfilled if guestCart exists.
+ * Filters out sourcing/out_of_stock items and clears localStorage guestCart on success.
  */
 export const mergeGuestCart = createAsyncThunk(
   "auth/mergeGuestCart",
@@ -91,28 +92,47 @@ export const mergeGuestCart = createAsyncThunk(
     if (typeof window === "undefined") return;
 
     const raw = window.localStorage.getItem("guestCart");
-    if (!raw) return; // nothing to merge
+    if (!raw) return;
 
-    let guestItems: { variantId: string; quantity: number }[] = [];
+    let guestItems: {
+      productId: string;
+      variantSku: string;
+      quantity: number;
+    }[] = [];
     try {
-      const parsed = JSON.parse(raw);
+      const parsed: CartItem[] = JSON.parse(raw);
+
+      // Filter out sourcing/out-of-stock items and construct payload per BE-08 specifications
       guestItems = parsed
-        .filter((item: any) => item.variantId && item.quantity)
-        .map((item: any) => ({ variantId: item.variantId, quantity: item.quantity }));
+        .filter(
+          (item) =>
+            item.variantId &&
+            item.quantity > 0 &&
+            item.availability !== "sourcing" &&
+            item.availability !== "out_of_stock",
+        )
+        .map((item) => ({
+          productId: item.productId,
+          variantSku: item.sku,
+          quantity: item.quantity,
+        }));
     } catch {
       window.localStorage.removeItem("guestCart");
       return;
     }
 
-    if (guestItems.length === 0) return;
+    if (guestItems.length === 0) {
+      window.localStorage.removeItem("guestCart");
+      return;
+    }
 
     try {
-      await axiosInstance.post("/cart/merge", { guestItems });
+      await axiosInstance.post("/cart/merge", { items: guestItems });
       window.localStorage.removeItem("guestCart");
     } catch (err) {
       return rejectWithValue(extractErrorMessage(err, "Cart merge failed"));
     }
-  }
+  },
 );
 
 const authSlice = createSlice({
@@ -138,12 +158,15 @@ const authSlice = createSlice({
       })
       .addCase(
         loginUser.fulfilled,
-        (state, action: PayloadAction<{ accessToken: string; user: AuthUser }>) => {
+        (
+          state,
+          action: PayloadAction<{ accessToken: string; user: AuthUser }>,
+        ) => {
           state.status = "succeeded";
           state.accessToken = action.payload.accessToken;
           state.user = action.payload.user;
           state.isAuthenticated = true;
-        }
+        },
       )
       .addCase(loginUser.rejected, (state, action) => {
         state.status = "failed";
@@ -154,13 +177,16 @@ const authSlice = createSlice({
       })
       .addCase(
         refreshSession.fulfilled,
-        (state, action: PayloadAction<{ accessToken: string; user: AuthUser }>) => {
+        (
+          state,
+          action: PayloadAction<{ accessToken: string; user: AuthUser }>,
+        ) => {
           state.status = "succeeded";
           state.accessToken = action.payload.accessToken;
           state.user = action.payload.user;
           state.isAuthenticated = true;
           state.initialized = true;
-        }
+        },
       )
       .addCase(refreshSession.rejected, (state) => {
         state.status = "idle";

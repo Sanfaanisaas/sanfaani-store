@@ -1,10 +1,21 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
+export type AvailabilityState =
+  | "in_stock"
+  | "low_stock"
+  | "out_of_stock"
+  | "sourcing";
+
 export interface CartItem {
+  productId: string;
   variantId: string;
+  sku: string;
   name: string;
+  image?: string;
   price: number;
   quantity: number;
+  maxStock?: number;
+  availability: AvailabilityState;
 }
 
 const initialState: CartItem[] = [];
@@ -14,19 +25,61 @@ const cartSlice = createSlice({
   initialState,
   reducers: {
     addToCart: (state, action: PayloadAction<CartItem>) => {
-      const existingItem = state.find((item) => item.variantId === action.payload.variantId);
+      // BE-01 Guard: Sourcing & Out-of-stock variants cannot enter a cart
+      if (
+        action.payload.availability === "sourcing" ||
+        action.payload.availability === "out_of_stock"
+      ) {
+        return;
+      }
+
+      const existingItem = state.find(
+        (item) => item.variantId === action.payload.variantId,
+      );
 
       if (existingItem) {
-        existingItem.quantity += action.payload.quantity;
+        const targetQuantity = existingItem.quantity + action.payload.quantity;
+        // Cap quantity to available stock if provided
+        if (existingItem.maxStock !== undefined) {
+          existingItem.quantity = Math.min(
+            targetQuantity,
+            existingItem.maxStock,
+          );
+        } else {
+          existingItem.quantity = targetQuantity;
+        }
       } else {
-        state.push(action.payload);
+        const initialQty =
+          action.payload.maxStock !== undefined
+            ? Math.min(action.payload.quantity, action.payload.maxStock)
+            : action.payload.quantity;
+
+        state.push({
+          ...action.payload,
+          quantity: Math.max(1, initialQty),
+        });
       }
     },
-    updateQuantity: (state, action: PayloadAction<{ variantId: string; quantity: number }>) => {
-      const item = state.find((entry) => entry.variantId === action.payload.variantId);
+    updateQuantity: (
+      state,
+      action: PayloadAction<{ variantId: string; quantity: number }>,
+    ) => {
+      const item = state.find(
+        (entry) => entry.variantId === action.payload.variantId,
+      );
 
       if (item) {
-        item.quantity = action.payload.quantity;
+        if (action.payload.quantity <= 0) {
+          return state.filter(
+            (entry) => entry.variantId !== action.payload.variantId,
+          );
+        }
+
+        if (item.maxStock !== undefined) {
+          item.quantity = Math.min(action.payload.quantity, item.maxStock);
+        } else {
+          item.quantity = action.payload.quantity;
+        }
       }
     },
     removeFromCart: (state, action: PayloadAction<string>) => {
@@ -36,13 +89,26 @@ const cartSlice = createSlice({
       return [];
     },
     syncCartFromStorage: (state, action: PayloadAction<CartItem[]>) => {
+      // Filter out any stored items that have turned into sourcing variants
+      const validIncoming = action.payload.filter(
+        (item) =>
+          item.availability !== "sourcing" &&
+          item.availability !== "out_of_stock",
+      );
+
       const merged = [...state];
 
-      action.payload.forEach((item) => {
-        const existingItem = merged.find((entry) => entry.variantId === item.variantId);
+      validIncoming.forEach((item) => {
+        const existingItem = merged.find(
+          (entry) => entry.variantId === item.variantId,
+        );
 
         if (existingItem) {
-          existingItem.quantity += item.quantity;
+          const totalQty = existingItem.quantity + item.quantity;
+          existingItem.quantity =
+            existingItem.maxStock !== undefined
+              ? Math.min(totalQty, existingItem.maxStock)
+              : totalQty;
         } else {
           merged.push(item);
         }
@@ -53,5 +119,11 @@ const cartSlice = createSlice({
   },
 });
 
-export const { addToCart, updateQuantity, removeFromCart, clearCart, syncCartFromStorage } = cartSlice.actions;
+export const {
+  addToCart,
+  updateQuantity,
+  removeFromCart,
+  clearCart,
+  syncCartFromStorage,
+} = cartSlice.actions;
 export default cartSlice.reducer;
