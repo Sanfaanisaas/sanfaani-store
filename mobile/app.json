@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "Sanfaani Store",
+    "slug": "sanfaani-store",
+    "scheme": "sanfaani",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-notifications"
+    ],
+    "ios": {
+      "bundleIdentifier": "com.sanfaani.store"
+    },
+    "android": {
+      "package": "com.sanfaani.store"
+    },
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
+      }
+    }
+  }
+}

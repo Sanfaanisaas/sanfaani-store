@@ -1,0 +1,4 @@
+import { useState } from "react";
+import { View, Text, Pressable } from "react-native";
+import { logout } from "../src/api";
+export default function Account(){const [state,setState]=useState('');async function signOut(){await logout();setState('Signed out. Private data and the secure token were cleared.')}return <View style={{flex:1,padding:20,gap:16}}><Text accessibilityRole="header" style={{fontSize:28,fontWeight:'700'}}>Account</Text><Text>Session material is stored only in Expo SecureStore. Biometric unlock is optional and never replaces backend authentication.</Text><Pressable accessibilityRole="button" onPress={signOut} style={{borderWidth:1,borderColor:'#0b1d33',padding:14,borderRadius:24,alignItems:'center'}}><Text>Sign out</Text></Pressable>{state&&<Text accessibilityLiveRegion="polite">{state}</Text>}</View>}

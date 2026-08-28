@@ -6,27 +6,50 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "type-check": "tsc --noEmit",
+    "api:generate": "node scripts/api-contract.mjs --generate",
+    "api:check": "node scripts/api-contract.mjs",
+    "test": "pnpm test:unit && pnpm test:integration",
+    "test:unit": "tsx --test tests/unit/*.test.ts",
+    "test:integration": "tsx --test tests/integration/*.test.ts",
+    "test:e2e": "playwright test",
+    "test:a11y": "playwright test --grep @a11y",
+    "lighthouse": "lhci autorun",
+    "smoke:api": "node scripts/api-smoke.mjs",
+    "smoke:vercel": "node scripts/vercel-smoke.mjs",
+    "security:scan": "node scripts/secret-scan.mjs",
+    "ci": "pnpm api:check && pnpm type-check && pnpm lint && pnpm test && pnpm build && pnpm test:e2e",
+    "mobile:validate": "pnpm --dir mobile validate",
+    "mobile:type-check": "pnpm --dir mobile type-check",
+    "mobile:test": "pnpm --dir mobile test"
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.12.0",
-    "axios": "^1.18.1",
-    "chart.js": "^4.5.1",
     "lucide-react": "^0.460.0",
     "next": "16.2.10",
     "react": "19.2.4",
-    "react-chartjs-2": "^5.3.1",
     "react-dom": "19.2.4",
     "react-redux": "^9.3.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@lhci/cli": "^0.15.1",
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
+    "lighthouse": "^13.4.1",
     "tailwindcss": "^4",
+    "tsx": "^4.23.12",
     "typescript": "^5"
-  }
+  },
+  "engines": {
+    "node": ">=22.15.0 <23",
+    "pnpm": "11.15.1"
+  },
+  "packageManager": "pnpm@11.15.1"
 }

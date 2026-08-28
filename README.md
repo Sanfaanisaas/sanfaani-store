@@ -1,92 +1,33 @@
-# Sanfaani Store — Frontend
+# Sanfaani Store Frontend
 
-Next.js frontend for the Sanfaani Store & Repair platform. This app handles product browsing, cart management, checkout/payment flows, order tracking, repair tracking, and account management.
+Next.js web storefront with a shared typed API contract and an Expo customer app in mobile/.
 
-## Stack
+## Runtime and setup
 
-- Next.js (App Router)
-- React + TypeScript
-- Redux Toolkit (cart, auth, repair)
-- Tailwind CSS
-- Axios (via rewrite proxy to backend)
+Use Node 22.15.x and pnpm 11.15.1. Run pnpm install --frozen-lockfile, copy .env.example, and configure BACKEND_URL server-side plus NEXT_PUBLIC_SITE_URL for metadata. Never put secrets in NEXT_PUBLIC_* variables.
 
-## Prerequisites
+## Architecture
 
-- Node.js 18+
-- Backend server running (default: `http://localhost:5000`)
+Web routes live in src/app/; transport and normalized DTOs are in src/lib/api/; repository guides are in src/content/; the mobile Expo Router app is in mobile/. Backend OpenAPI/status snapshots are recorded in contracts/ and checked by pnpm api:check.
 
-## Environment
+Authentication keeps browser access tokens in memory and uses the backend HTTP-only refresh cookie. Logout clears runtime auth and user-scoped state. Mobile uses Expo SecureStore, never AsyncStorage.
 
-Create `.env` in this directory:
+## Commands
 
-```
-BACKEND_URL=http://localhost:5000
-NEXT_PUBLIC_DEV_AUTH=true   # optional: enables dev-only mock login
-```
+pnpm dev, pnpm build, pnpm start
+pnpm lint, pnpm type-check
+pnpm test:unit, pnpm test:integration, pnpm test:e2e, pnpm test:a11y
+pnpm api:generate, pnpm api:check, pnpm smoke:api, pnpm smoke:vercel, pnpm security:scan
+pnpm mobile:validate, pnpm mobile:type-check, pnpm mobile:test
 
-## Getting Started
+## CI, deployment, and rollback
 
-```bash
-npm install
-npm run dev
-```
+The required workflow is .github/workflows/frontend.yml; its required checks are lint, type-check, API contract, tests, build, browser/a11y, Lighthouse, security scan, and mobile validation. Vercel should use the same Node/pnpm versions and server-side backend URL. Set VERCEL_SMOKE_URL to run safe deployment checks. To roll back, identify the last successful Vercel deployment, promote it using the Vercel dashboard/CLI, then run smoke checks and record owner and timestamp.
 
-Open `http://localhost:3000`.
+## Accessibility and security
 
-## Dev Auth
+Use keyboard-visible focus, semantic labels, reduced-motion support, no unsafe HTML, no tokens in URLs/logs, safe external links, and essential-only consent by default. Private routes are noindexed.
 
-If `NEXT_PUBLIC_DEV_AUTH=true`, the login page accepts any email/password and issues a mock token. No backend required. Set it to `false` or remove it to use real auth.
+## Mobile release
 
-## Key Routes
-
-| Route | Purpose |
-|-------|---------|
-| `/` | Hero, featured products, waitlist |
-| `/shop` | Product listing |
-| `/shop/[id]` | Product detail |
-| `/cart` | Cart with quantity controls |
-| `/checkout` | Delivery/pickup, payment method, address form |
-| `/account/orders` | Order history and details |
-| `/repair/track` | Repair tracking entry |
-| `/repair/track/[id]` | Repair status detail |
-
-## State
-
-- `cartSlice` — Redux cart; guest items hydrate from `localStorage`, authenticated items sync with backend
-- `authSlice` — Login, refresh, logout, guest cart merge on login
-- `repairSlice` — Repair requests and quotes
-
-## Cart Flow
-
-1. **Guest**: items persist to `localStorage` under `guestCart`.
-2. **Login**: `mergeGuestCart` posts guest items to `/cart/merge`, clears `localStorage`, then fetches server cart into Redux.
-3. **Authenticated**: add/update/remove dispatches to Redux and writes to `/cart/items`. Conflicts (stock/price) surface from backend `409` responses.
-
-## Checkout Flow
-
-1. Client submits `paymentMethod`, `fulfillmentMode`, and address.
-2. Backend validates stock, price, idempotency, and pay-on-pickup eligibility.
-3. Returns order + Paystack authorization URL (or pending status for bank transfer / pay-on-pickup).
-4. Frontend redirects to Paystack; return page polls `/orders/mine` or `/payments/:paymentId` for real status.
-5. Bank transfer and pay-on-pickup show pending-state UX with receipt upload guidance.
-
-## Order Flow
-
-- Orders list fetched from `GET /orders/mine`.
-- Detail view shows customer timeline, next actions, and receipt download.
-- Internal notes are never exposed in the UI.
-
-## Backend Proxy
-
-Next.js rewrites `/api/*` to `BACKEND_URL/api/*` in `next.config.ts`. Axios baseURL is `/api` in the browser, so requests are same-origin and avoid CORS.
-
-## Corrections Applied
-
-- Replaced hardcoded delivery total with backend-authoritative quote.
-- Added fulfillment mode and conditional address validation.
-- Made Paystack return safe (no success declared from callback alone).
-- Added idempotency key handling for checkout and payment.
-- Replaced mock orders with `GET /orders/mine`.
-- Added receipt download and pending payment states.
-- Fixed hero CTA href to `/shop`.
-- Added mobile drawer focus trap, Escape-to-close, and reduced-motion support.
+Expo/EAS profiles are in mobile/eas.json; signing credentials remain outside the repository. Build numbers use EAS auto-increment for production. Crash monitoring and push-device registration are explicit integration boundaries until backend support exists. See docs/route-prd-matrix.md for known unavailable capabilities (customer warranty list, evidence upload, device-token registration).

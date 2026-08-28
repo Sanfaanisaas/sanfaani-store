@@ -1,207 +1,37 @@
-import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
-import { isAxiosError } from "axios";
-import {
-  registerRequest,
-  loginRequest,
-  refreshRequest,
-  logoutRequest,
-  RegisterPayload,
-  LoginPayload,
-} from "@/lib/api/authApi";
-import axiosInstance from "@/lib/api/axiosInstance";
-import { CartItem } from "@/lib/redux/slices/cartSlice";
+import { createAsyncThunk, createSlice, type PayloadAction } from "@reduxjs/toolkit";
+import { errorMessage, ApiError, setRuntimeAccessToken } from "@/lib/api/client";
+import { loginRequest, logoutRequest, refreshRequest, registerRequest, type LoginPayload, type RegisterPayload } from "@/lib/api/authApi";
+import type { ApiUser, AuthSession } from "@/lib/api/contracts";
 
-export interface AuthUser {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  phone?: string | null;
-}
+export type SessionPhase = "restoring" | "signed_out" | "authenticated" | "expired" | "unavailable";
+export type AuthUser = ApiUser;
+interface AuthState { user: AuthUser | null; accessToken: string | null; isAuthenticated: boolean; status: "idle" | "loading" | "succeeded" | "failed"; initialized: boolean; phase: SessionPhase; error: string | null; }
+const initialState: AuthState = { user: null, accessToken: null, isAuthenticated: false, status: "idle", initialized: false, phase: "restoring", error: null };
 
-interface AuthState {
-  user: AuthUser | null;
-  accessToken: string | null;
-  isAuthenticated: boolean;
-  status: "idle" | "loading" | "succeeded" | "failed";
-  initialized: boolean;
-  error: string | null;
-}
-
-const initialState: AuthState = {
-  user: null,
-  accessToken: null,
-  isAuthenticated: false,
-  status: "idle",
-  initialized: false,
-  error: null,
-};
-
-function extractErrorMessage(err: unknown, fallback: string): string {
-  if (isAxiosError(err) && err.response?.data?.message) {
-    return err.response.data.message as string;
-  }
-  return fallback;
-}
-
-export const registerUser = createAsyncThunk(
-  "auth/registerUser",
-  async (payload: RegisterPayload, { rejectWithValue }) => {
-    try {
-      return await registerRequest(payload);
-    } catch (err) {
-      return rejectWithValue(extractErrorMessage(err, "Registration failed"));
-    }
-  },
-);
-
-export const loginUser = createAsyncThunk(
-  "auth/loginUser",
-  async (payload: LoginPayload, { rejectWithValue }) => {
-    try {
-      return await loginRequest(payload);
-    } catch (err) {
-      return rejectWithValue(extractErrorMessage(err, "Invalid credentials"));
-    }
-  },
-);
-
-export const refreshSession = createAsyncThunk(
-  "auth/refreshSession",
-  async (_, { rejectWithValue }) => {
-    try {
-      return await refreshRequest();
-    } catch (err) {
-      return rejectWithValue(extractErrorMessage(err, "Not logged in"));
-    }
-  },
-);
-
-export const logoutUser = createAsyncThunk("auth/logoutUser", async () => {
-  await logoutRequest();
-});
-
-/**
- * Merges the guest localStorage cart into the authenticated user's server-side cart.
- * Call this immediately after loginUser.fulfilled or refreshSession.fulfilled if guestCart exists.
- * Filters out sourcing/out_of_stock items and clears localStorage guestCart on success.
- */
-export const mergeGuestCart = createAsyncThunk(
-  "auth/mergeGuestCart",
-  async (_, { rejectWithValue }) => {
-    if (typeof window === "undefined") return;
-
-    const raw = window.localStorage.getItem("guestCart");
-    if (!raw) return;
-
-    let guestItems: {
-      productId: string;
-      variantSku: string;
-      quantity: number;
-    }[] = [];
-    try {
-      const parsed: CartItem[] = JSON.parse(raw);
-
-      // Filter out sourcing/out-of-stock items and construct payload per BE-08 specifications
-      guestItems = parsed
-        .filter(
-          (item) =>
-            item.variantId &&
-            item.quantity > 0 &&
-            item.availability !== "sourcing" &&
-            item.availability !== "out_of_stock",
-        )
-        .map((item) => ({
-          productId: item.productId,
-          variantSku: item.sku,
-          quantity: item.quantity,
-        }));
-    } catch {
-      window.localStorage.removeItem("guestCart");
-      return;
-    }
-
-    if (guestItems.length === 0) {
-      window.localStorage.removeItem("guestCart");
-      return;
-    }
-
-    try {
-      await axiosInstance.post("/cart/merge", { items: guestItems });
-      window.localStorage.removeItem("guestCart");
-    } catch (err) {
-      return rejectWithValue(extractErrorMessage(err, "Cart merge failed"));
-    }
-  },
-);
+function storeSession(session: AuthSession) { setRuntimeAccessToken(session.accessToken); return session; }
+export const registerUser = createAsyncThunk("auth/registerUser", async (payload: RegisterPayload, { rejectWithValue }) => { try { return await registerRequest(payload); } catch (error) { return rejectWithValue(errorMessage(error, "Registration failed.")); } });
+export const loginUser = createAsyncThunk("auth/loginUser", async (payload: LoginPayload, { rejectWithValue }) => { try { return storeSession(await loginRequest(payload)); } catch (error) { return rejectWithValue(errorMessage(error, "Invalid email or password.")); } });
+export const refreshSession = createAsyncThunk("auth/refreshSession", async (_, { rejectWithValue }) => { try { return storeSession(await refreshRequest()); } catch (error) { return rejectWithValue(error instanceof ApiError ? error.kind : "unknown"); } });
+/** Always clear local private state, even when the server cannot be reached. */
+export const logoutUser = createAsyncThunk("auth/logoutUser", async () => { try { await logoutRequest(); } finally { setRuntimeAccessToken(null); } });
 
 const authSlice = createSlice({
-  name: "auth",
-  initialState,
-  reducers: {},
-  extraReducers: (builder) => {
-    builder
-      .addCase(registerUser.pending, (state) => {
-        state.status = "loading";
-        state.error = null;
-      })
-      .addCase(registerUser.fulfilled, (state) => {
-        state.status = "succeeded";
-      })
-      .addCase(registerUser.rejected, (state, action) => {
-        state.status = "failed";
-        state.error = action.payload as string;
-      })
-      .addCase(loginUser.pending, (state) => {
-        state.status = "loading";
-        state.error = null;
-      })
-      .addCase(
-        loginUser.fulfilled,
-        (
-          state,
-          action: PayloadAction<{ accessToken: string; user: AuthUser }>,
-        ) => {
-          state.status = "succeeded";
-          state.accessToken = action.payload.accessToken;
-          state.user = action.payload.user;
-          state.isAuthenticated = true;
-        },
-      )
-      .addCase(loginUser.rejected, (state, action) => {
-        state.status = "failed";
-        state.error = action.payload as string;
-      })
-      .addCase(refreshSession.pending, (state) => {
-        state.status = "loading";
-      })
-      .addCase(
-        refreshSession.fulfilled,
-        (
-          state,
-          action: PayloadAction<{ accessToken: string; user: AuthUser }>,
-        ) => {
-          state.status = "succeeded";
-          state.accessToken = action.payload.accessToken;
-          state.user = action.payload.user;
-          state.isAuthenticated = true;
-          state.initialized = true;
-        },
-      )
-      .addCase(refreshSession.rejected, (state) => {
-        state.status = "idle";
-        state.accessToken = null;
-        state.user = null;
-        state.isAuthenticated = false;
-        state.initialized = true;
-      })
-      .addCase(logoutUser.fulfilled, (state) => {
-        state.user = null;
-        state.accessToken = null;
-        state.isAuthenticated = false;
-        state.status = "idle";
-      });
+  name: "auth", initialState,
+  reducers: {
+    sessionExpired(state) { setRuntimeAccessToken(null); state.user = null; state.accessToken = null; state.isAuthenticated = false; state.initialized = true; state.status = "idle"; state.phase = "expired"; state.error = "Your session has expired. Please sign in again."; },
+    clearAuthError(state) { state.error = null; },
   },
+  extraReducers: (builder) => builder
+    .addCase(registerUser.pending, (state) => { state.status = "loading"; state.error = null; })
+    .addCase(registerUser.fulfilled, (state) => { state.status = "succeeded"; })
+    .addCase(registerUser.rejected, (state, action) => { state.status = "failed"; state.error = String(action.payload ?? "Registration failed."); })
+    .addCase(loginUser.pending, (state) => { state.status = "loading"; state.error = null; })
+    .addCase(loginUser.fulfilled, (state, action: PayloadAction<AuthSession>) => { state.status = "succeeded"; state.accessToken = action.payload.accessToken; state.user = action.payload.user; state.isAuthenticated = true; state.initialized = true; state.phase = "authenticated"; })
+    .addCase(loginUser.rejected, (state, action) => { setRuntimeAccessToken(null); state.status = "failed"; state.error = String(action.payload ?? "Unable to sign in."); state.phase = "signed_out"; state.initialized = true; })
+    .addCase(refreshSession.pending, (state) => { if (!state.initialized) state.phase = "restoring"; state.status = "loading"; })
+    .addCase(refreshSession.fulfilled, (state, action: PayloadAction<AuthSession>) => { state.status = "succeeded"; state.accessToken = action.payload.accessToken; state.user = action.payload.user; state.isAuthenticated = true; state.initialized = true; state.phase = "authenticated"; state.error = null; })
+    .addCase(refreshSession.rejected, (state, action) => { setRuntimeAccessToken(null); const kind = action.payload; state.status = "idle"; state.accessToken = null; state.user = null; state.isAuthenticated = false; state.initialized = true; state.phase = kind === "unavailable" || kind === "network" || kind === "timeout" ? "unavailable" : "signed_out"; state.error = state.phase === "unavailable" ? "We could not restore your session. Please try again." : null; })
+    .addCase(logoutUser.fulfilled, (state) => { state.user = null; state.accessToken = null; state.isAuthenticated = false; state.status = "idle"; state.initialized = true; state.phase = "signed_out"; state.error = null; }),
 });
-
+export const { sessionExpired, clearAuthError } = authSlice.actions;
 export default authSlice.reducer;

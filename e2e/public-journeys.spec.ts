@@ -1,0 +1,6 @@
+import { expect, test } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
+test("browse to shop and see an honest catalogue loading state", async ({ page }) => { await page.goto("/"); await expect(page.getByRole("link", { name: "Browse devices" })).toBeVisible(); await page.getByRole("link", { name: "Browse devices" }).click(); await expect(page.getByRole("heading", { name: "Shop devices and repair services" })).toBeVisible(); });
+test("cookie consent is essential-only by default and can be saved", async ({ page }) => { await page.goto("/"); await expect(page.getByRole("dialog", { name: "Cookie settings" })).toBeVisible(); await expect(page.getByLabel("Allow optional analytics")).not.toBeChecked(); await expect(page.getByRole("button", { name: "Use essential only" })).toBeEnabled(); });
+test("operations route does not render private queue to a signed-out visitor", async ({ page }) => { await page.goto("/operations"); await expect(page.getByRole("heading", { name: "Operations queue" })).not.toBeVisible(); });
+test("public home has no critical automated accessibility violations @a11y", async ({ page }) => { await page.goto("/"); const results = await new AxeBuilder({ page }).analyze(); expect(results.violations.filter((violation) => violation.impact === "critical")).toEqual([]); });

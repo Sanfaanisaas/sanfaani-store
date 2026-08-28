@@ -1,29 +1,5 @@
 import type { NextConfig } from "next";
-
 const backendUrl = process.env.BACKEND_URL?.replace(/\/+$/, "");
-
-const nextConfig: NextConfig = {
-  async redirects() {
-    return [
-      {
-        source: "/operations/user",
-        destination: "/account/orders",
-        permanent: false,
-      },
-    ];
-  },
-  async rewrites() {
-    if (!backendUrl) {
-      throw new Error("BACKEND_URL is not configured");
-    }
-
-    return [
-      {
-        source: "/api/:path*",
-        destination: `${backendUrl}/api/:path*`,
-      },
-    ];
-  },
-};
-
+const securityHeaders = [{ key: "X-Content-Type-Options", value: "nosniff" }, { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" }, { key: "X-Frame-Options", value: "DENY" }, { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" }, { key: "Content-Security-Policy", value: "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self'; script-src 'self'" }];
+const nextConfig: NextConfig = { async headers() { return [{ source: "/:path*", headers: securityHeaders }]; }, async redirects() { return [{ source: "/operations/user", destination: "/account/orders", permanent: false }]; }, async rewrites() { return backendUrl ? [{ source: "/api/:path*", destination: backendUrl + "/api/:path*" }] : []; } };
 export default nextConfig;

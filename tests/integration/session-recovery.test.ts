@@ -1,0 +1,6 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { apiClient, configureSessionRecovery, setRuntimeAccessToken } from "../../src/lib/api/client";
+const originalFetch = globalThis.fetch;
+test.afterEach(() => { globalThis.fetch = originalFetch; setRuntimeAccessToken(null); });
+test("two unauthorized requests share one refresh and retry once", async () => { let refreshes = 0; let requests = 0; setRuntimeAccessToken("old-token"); configureSessionRecovery({ refresh: async () => { refreshes += 1; setRuntimeAccessToken("new-token"); return true; }, onExpired: () => undefined }); globalThis.fetch = async (_input, init) => { requests += 1; const authorization = new Headers(init?.headers).get("authorization"); return authorization === "Bearer new-token" ? new Response(JSON.stringify({ success: true, data: { ok: true } }), { headers: { "content-type": "application/json" } }) : new Response(JSON.stringify({ success: false, message: "Expired" }), { status: 401, headers: { "content-type": "application/json" } }); }; const [first, second] = await Promise.all([apiClient.get<{ ok: boolean }>("/one"), apiClient.get<{ ok: boolean }>("/two")]); assert.deepEqual(first, { ok: true }); assert.deepEqual(second, { ok: true }); assert.equal(refreshes, 1); assert.equal(requests, 4); });

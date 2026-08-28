@@ -1,0 +1,4 @@
+import { Link } from "expo-router";
+import { View, Text, Pressable, StyleSheet } from "react-native";
+export default function Home() { return <View style={styles.container}><Text accessibilityRole="header" style={styles.heading}>Sanfaani Store</Text><Text style={styles.body}>Condition-checked devices and repair tracking.</Text><Link href="/catalogue" asChild><Pressable accessibilityRole="button" style={styles.button}><Text>Browse catalogue</Text></Pressable></Link><View style={styles.links}><Link href="/cart">Cart</Link><Link href="/orders">Orders</Link><Link href="/repairs">Repairs</Link><Link href="/account">Account</Link></View></View>; }
+const styles=StyleSheet.create({container:{flex:1,padding:24,gap:18,justifyContent:'center'},heading:{fontSize:32,fontWeight:'700'},body:{fontSize:17,color:'#596273'},button:{backgroundColor:'#b8892b',padding:16,borderRadius:24,alignItems:'center'},links:{gap:16}});

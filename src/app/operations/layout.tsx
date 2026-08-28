@@ -1,13 +1,5 @@
+import type { Metadata } from "next";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { USER_ROLES } from "@/lib/constants";
-
-export default function OperationsLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <>
-      {/* <ProtectedRoute allowedRoles={[USER_ROLES.PRODUCT_ADMIN, USER_ROLES.SUPER_ADMIN]}> */}
-      {children}
-      {/* </ProtectedRoute>     */}
-    </>
-
-  );
-}
+import { OPERATIONS_ROLES } from "@/lib/api/contracts";
+export const metadata: Metadata = { robots: { index: false, follow: false } };
+export default function OperationsLayout({ children }: { children: React.ReactNode }) { return <ProtectedRoute allowedRoles={OPERATIONS_ROLES}>{children}</ProtectedRoute>; }

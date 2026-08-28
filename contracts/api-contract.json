@@ -1,0 +1,31 @@
+{
+  "source": {
+    "repository": "Sanfaanisaas/sanfaani-storebackend",
+    "generatedFrom": "src/config/swagger.js and src/routes/*.js",
+    "openapi": "3.1.0",
+    "version": "1.0.0",
+    "capturedAt": "2026-08-28"
+  },
+  "statusContractVersion": "2026-08-26",
+  "statuses": [
+    "REQUESTED",
+    "QUOTE_SENT",
+    "ACCEPTED",
+    "pending_payment",
+    "in_stock"
+  ],
+  "endpoints": [
+    "/health",
+    "/auth/login",
+    "/auth/refresh",
+    "/auth/logout",
+    "/auth/sessions",
+    "/products",
+    "/orders/mine",
+    "/checkout",
+    "/repairs/{id}/track",
+    "/dashboard/queue",
+    "/support/mine",
+    "/support"
+  ]
+}
