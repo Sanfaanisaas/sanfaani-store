@@ -124,3 +124,76 @@ Addresses all core requirements for FE-03 by migrating `/shop` filtering and pag
 - `src/app/shop/page.tsx`
 - `src/app/shop/[id]/page.tsx`
 - `src/components/ProductCard.tsx`
+
+## Comprehensive Storefront Milestone PR (FE-05, FE-06, FE-14)
+
+### Summary of Changes
+
+This pull request consolidates critical frontend architectural improvements, checkout/order workflows, customer tracking, and route accessibility across the Sanfaani Storefront application, closing out tickets **FE-05**, **FE-06**, and **FE-14**.
+
+---
+
+### Tickets Covered & Highlights
+
+#### 1. [FE-05] Complete Checkout, Payment Reconciliation & Order Receipts
+
+- **Fulfilment Mode Selection:** Implemented dynamic switching between `Doorstep Delivery` and `Store Pickup`.
+- **Conditional Address & Quoting:** Shipping address is conditionally validated only for deliveries; integrated live delivery quotation fetching (`POST /checkout/quote`) before submission.
+- **Server-Owned Pricing:** Cleaned client payloads to submit strictly SKUs and quantities, ensuring the backend maintains authoritative price calculation and stock validation.
+- **Payment Reconciliation:**
+  - Integrated Paystack online verification callback (`/checkout/confirmation`) verifying transactions via `POST /payments/verify` before clearing the cart.
+  - Added direct bank transfer workflow with dynamic account details, copyable reference code, and pending status instructions.
+  - Enforced eligibility validation for pay-on-pickup.
+- **Conflict Handling:** Added recovery UI for HTTP 409 stock/price changes.
+
+#### 2. [FE-06] Order History, Tracking Detail & Fulfilment Evidence
+
+- **Dedicated Order Detail Route:** Implemented `src/app/account/orders/[id]/page.tsx` fetching live order data via `GET /orders/:id`.
+- **Customer-Facing 5-Stage Timeline:** Visual progression tracking `Order Placed` ➔ `Payment Confirmed` ➔ `Quality Check & Packing` ➔ `Dispatched / Ready for Pickup` ➔ `Delivered / Collected`.
+- **Fulfilment Evidence Cards:**
+  - _Delivery_: Carrier name, tracking links, and delivery attempt failure notices.
+  - _Pickup_: Branch address, opening hours, ready timestamp, and collection PIN.
+- **Cancellation & Refund SLA:** Pre-dispatch cancellation modal triggering `POST /orders/:id/cancel` with clear refund SLA messaging (3–5 business days to original payment method).
+- **Projection Privacy & Tests:** Added focused projection tests (`orders-projection.test.ts`) using `node:test` to verify that sensitive staff-only fields (margins, internal notes, carrier API tokens) are strictly omitted from the customer UI.
+- **Invoice Printing:** Formatted printable receipt and invoice breakdowns.
+
+#### 3. [FE-14] Navigation, Route Integrity & Accessibility
+
+- **Accessible Mobile Drawer:**
+  - Focus trapping (`Tab`/`Shift+Tab` loop) inside the drawer.
+  - Auto-focus on drawer open and focus restoration to trigger button on close.
+  - Global `Escape` key close handler.
+  - Background inertness / scroll locking while the drawer is active.
+  - `motion-reduce:transition-none` accessibility support.
+- **Active Route Highlighting:** Computed active navigation states via `usePathname()` with `aria-current="page"` and high-contrast visual indicators.
+- **Dual Tracking Entry Hub:** Updated `/repair/track` with a tabbed interface distinguishing between **Repair Tracking** (with secure session token storage) and **Order Tracking** (Order Number).
+- **Live Home CTAs:** Replaced outdated launch-era waitlist forms on `/` with live store conversion actions ("Browse Live Catalogue" & "Request Device Repair").
+
+---
+
+### Modified & Created Files
+
+| Area                           | Files                                                                                                                             |
+| :----------------------------- | :-------------------------------------------------------------------------------------------------------------------------------- |
+| **Checkout (FE-05)**           | `src/app/checkout/page.tsx`<br>`src/app/checkout/confirmation/page.tsx`                                                           |
+| **Orders & Tracking (FE-06)**  | `src/app/account/orders/page.tsx`<br>`src/app/account/orders/[id]/page.tsx`<br>`src/app/account/orders/orders-projection.test.ts` |
+| **Navigation & Pages (FE-14)** | `src/components/Navbar.tsx`<br>`src/app/repair/track/page.tsx`<br>`src/app/page.tsx`                                              |
+
+---
+
+### Verification & Quality Checks
+
+- [x] **TypeScript Strict Check:** `pnpm type-check` (0 errors)
+- [x] **Code Quality & Linter:** `pnpm lint` (0 errors, 0 warnings)
+- [x] **Projection Tests:** `orders-projection.test.ts` passes with zero data leaks
+- [x] **Manual Flows Tested:**
+  - Fulfilment switcher (Delivery vs. Pickup) and live quote updates.
+  - Paystack payment callback reconciliation & cart clearance timing.
+  - Drawer keyboard trapping, Escape close, and focus restoration.
+  - Tracking forms for orders and repairs.
+
+---
+
+### Merge Readiness
+
+Ready for team review and merge into `main` / `staging`.
