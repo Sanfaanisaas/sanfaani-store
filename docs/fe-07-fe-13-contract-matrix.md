@@ -37,3 +37,36 @@ All endpoint paths below are relative to the frontend proxy/API base (`/api`). R
 4. Add owner notification/preference routes and an allowlisted resource-link projection.
 5. Add guidance saved-session listing, rules/model version and advisor-escalation routes if those product capabilities are intended.
 6. Add the customer procurement and service/maintenance contracts described in FE-12 and FE-13. Internal purchase-order APIs cannot be repurposed for either ticket.
+
+
+## Implemented frontend routes and verified states
+
+- FE-07: /repair/request submits authenticated JSON, shows the raw tracking credential only once, supports the authorised multipart repair-evidence upload after confirmation, and never calls staff intake. /repair/track/[id] uses bearer-owner access when signed in or an in-memory X-Repair-Tracking-Token otherwise. It never puts the credential in a URL or persistent storage. Quote approval/decline is visible only to an authenticated owner and uses the quote document ID.
+- FE-09: /account/warranty lists customer-safe claim projections and withholds claim submission until warranty list/eligibility exists. /account/returns lists owner-scoped returns and owned order items, submits a server-confirmed request, and supports authorised return evidence after confirmation. It does not claim eligibility or payment refund completion.
+- FE-10: /support uses /support-tickets for creation, owned list/conversation, and reply. /notifications is an authenticated unavailable state because no notification API exists.
+- FE-11: /guidance submits the deterministic backend intake, resolves results against current public catalogue variants before a product link, explains backend factors and live availability, supports secure resume without browser persistence, and presents a no-match/revise path. No advisor escalation is invented.
+- FE-12: /procurement documents the missing customer procurement/quotation contract and never calls staff-only supplier or purchase-order routes.
+- FE-13: /services separates upgrades, setup, migration, maintenance, and plans while documenting the absent customer assessment, quote, plan, and service-history contract. It collects no secrets and simulates no service action.
+
+## Verification executed
+
+- pnpm install --frozen-lockfile — passed; no dependency changes.
+- pnpm type-check — passed.
+- pnpm lint — passed with 0 errors and 0 warnings.
+- pnpm test:customer-tickets — passed, 6/6 focused API-boundary tests.
+- pnpm test — passed, 10/10 tests: 9 unit and 1 integration.
+- pnpm build — passed; all authorised routes compiled.
+- pnpm test:e2e — passed, 4 configured browser tests.
+- pnpm test:a11y — passed, 1/1 critical-violation check.
+- pnpm security:scan — passed; no known credential patterns.
+
+## Ticket disposition
+
+| Ticket | Disposition | Exact reason |
+| --- | --- | --- |
+| FE-07 | PARTIALLY COMPLETE — EXTERNAL DEPENDENCY | Core creation/tracking/quote/evidence flows are implemented. The customer tracking projection does not expose quote expiry, superseded history, or deposit/payment state, so those cannot be displayed without inventing data. |
+| FE-09 | PARTIALLY COMPLETE — EXTERNAL DEPENDENCY | Owned claim list and return request/list/evidence are implemented. Owner warranty list/detail/eligibility, claim detail, and return eligibility/refund confirmation are absent. |
+| FE-10 | PARTIALLY COMPLETE — EXTERNAL DEPENDENCY | Ticket create/list/reply are implemented. Ticket detail/SLA/category/evidence and all notification/preference APIs are absent. |
+| FE-11 | PARTIALLY COMPLETE — EXTERNAL DEPENDENCY | Deterministic guidance, catalogue revalidation, no-match, and secure resume are implemented. Saved-session listing/rules version and advisor escalation are absent. |
+| FE-12 | PARTIALLY COMPLETE — EXTERNAL DEPENDENCY | Customer procurement request, quotation, document, and order-conversion APIs are absent; the implementation deliberately excludes staff-only procurement routes. |
+| FE-13 | PARTIALLY COMPLETE — EXTERNAL DEPENDENCY | Customer service assessment, quotes, plans, history, evidence association, and versioned disclosures are absent. |

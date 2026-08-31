@@ -16,3 +16,14 @@
 | Mobile push/deep links | Customer | Platform boundary; registration unavailable pending backend | Customer | Permission denied, unavailable | FE-19 |
 
 Excluded FE-03–FE-07 and FE-09–FE-14 product domains are not implemented.
+
+## Authorized customer-flow addendum (FE-07, FE-09–FE-13)
+
+| Route | Data source / state | Ticket |
+| --- | --- | --- |
+| /repair/request, /repair/track/[id] | Repairs API; JSON creation, safe bearer/scoped tracking, exact owner quote decision, authorised evidence | FE-07 |
+| /account/warranty, /account/returns | Owner claims/returns/orders APIs; missing warranty eligibility/detail marked unavailable | FE-09 |
+| /support, /notifications | Owner support tickets; notification API unavailable | FE-10 |
+| /guidance | Deterministic guidance API plus live public catalogue; limited saved-session resume | FE-11 |
+| /procurement | Customer procurement API unavailable; never calls internal procurement | FE-12 |
+| /services | Customer service/maintenance API unavailable | FE-13 |

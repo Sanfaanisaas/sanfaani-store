@@ -5,6 +5,7 @@ import { createRepair, decideRepairQuote, fetchRepairTracking } from "../../src/
 import { normalizeClaim, normalizeReturn, listReturnOrders } from "../../src/lib/api/warrantyApi";
 import { normalizeTicket } from "../../src/lib/api/supportApi";
 import { normalizeGuidanceSession } from "../../src/lib/api/guidanceApi";
+import { evidenceValidationMessage, uploadEvidenceFile } from "../../src/lib/api/evidenceApi";
 
 const originalFetch = globalThis.fetch;
 test.afterEach(() => { globalThis.fetch = originalFetch; setRuntimeAccessToken(null); configureSessionRecovery({ refresh: async () => false, onExpired: () => undefined }); });
@@ -59,4 +60,22 @@ test("support and guidance normalizers retain only customer-safe deterministic f
   assert.deepEqual(ticket.messages, [{ body: "Reply", createdAt: "2026-08-31T00:00:00.000Z" }]);
   assert.deepEqual(guidance.recommendations, [{ variantId: "variant-1", factors: ["within_budget"], availability: "in_stock" }]);
   assert.equal("advisorNotes" in guidance, false);
+});
+
+
+test("evidence upload uses the authorized multipart contract without a storage key", async () => {
+  setRuntimeAccessToken("owner-token"); let input = ""; let received: RequestInit | undefined;
+  globalThis.fetch = async (request, init) => { input = String(request); received = init; return ok({ evidence: { id: "evidence-1" } }); };
+  const file = new File([new Uint8Array([1])], "repair-proof.pdf", { type: "application/pdf" });
+  assert.equal(evidenceValidationMessage(file), null);
+  await uploadEvidenceFile({ file, subjectType: "repair", subjectId: "repair-1", purpose: "repair_intake" });
+  assert.equal(input.endsWith("/evidence"), true);
+  assert.equal(new Headers(received?.headers).get("authorization"), "Bearer owner-token");
+  assert.equal(new Headers(received?.headers).get("content-type"), null);
+  assert.ok(received?.body instanceof FormData);
+  const form = received?.body as FormData;
+  assert.equal(form.get("subjectType"), "repair");
+  assert.equal(form.get("subjectId"), "repair-1");
+  assert.equal(form.get("purpose"), "repair_intake");
+  assert.equal(form.get("file") instanceof File, true);
 });

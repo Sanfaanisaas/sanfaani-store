@@ -31,3 +31,7 @@ Use keyboard-visible focus, semantic labels, reduced-motion support, no unsafe H
 ## Mobile release
 
 Expo/EAS profiles are in mobile/eas.json; signing credentials remain outside the repository. Build numbers use EAS auto-increment for production. Crash monitoring and push-device registration are explicit integration boundaries until backend support exists. See docs/route-prd-matrix.md for known unavailable capabilities (customer warranty list, evidence upload, device-token registration).
+
+## Authorized customer workflows
+
+The FE-07 and FE-09–FE-13 implementation and exact backend dependencies are documented in docs/fe-07-fe-13-contract-matrix.md. It lists every route, owner/authentication rule, tracking credential behavior, evidence flow, unavailable state, and verification command. Run pnpm test:customer-tickets for the focused API-boundary suite.
