@@ -3,14 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  FileText,
-  Printer,
   Truck,
   Store,
   CheckCircle2,
   Clock,
-  ChevronDown,
-  ChevronUp,
+  ArrowRight,
+  Package,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -105,7 +103,6 @@ function normalizeOrder(value: unknown): Order {
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
-  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [message, setMessage] = useState("Order history is unavailable.");
 
@@ -150,7 +147,8 @@ export default function OrdersPage() {
               My orders
             </h1>
             <p className="mt-1 text-sm text-mist">
-              Review and print immutable receipts and delivery updates.
+              Track live fulfilment status, view timelines, and download
+              receipts.
             </p>
           </div>
           <Link
@@ -181,7 +179,6 @@ export default function OrdersPage() {
           ) : (
             <div className="space-y-4">
               {orders.map((order) => {
-                const isExpanded = expandedOrderId === order.id;
                 const isPaid =
                   order.paymentStatus === "paid" ||
                   order.paymentStatus === "completed";
@@ -189,9 +186,9 @@ export default function OrdersPage() {
                 return (
                   <article
                     key={order.id}
-                    className="overflow-hidden rounded-2xl border border-navy-900/10 bg-white shadow-sm transition hover:shadow-md"
+                    className="overflow-hidden rounded-2xl border border-navy-900/10 bg-white p-5 shadow-sm transition hover:shadow-md"
                   >
-                    <div className="flex flex-wrap items-center justify-between gap-4 p-5">
+                    <div className="flex flex-wrap items-center justify-between gap-4">
                       <div>
                         <div className="flex items-center gap-2">
                           <h2 className="font-semibold text-ink">
@@ -213,7 +210,7 @@ export default function OrdersPage() {
                           </span>
                         </div>
                         <p className="mt-1 text-xs text-mist">
-                          Placed on:{" "}
+                          Placed on{" "}
                           {order.createdAt
                             ? new Date(order.createdAt).toLocaleDateString(
                                 "en-NG",
@@ -224,6 +221,17 @@ export default function OrdersPage() {
                                 },
                               )
                             : "Recent"}
+                          {" · "}
+                          <span className="inline-flex items-center gap-1">
+                            {order.fulfilmentMode === "pickup" ? (
+                              <Store size={12} />
+                            ) : (
+                              <Truck size={12} />
+                            )}
+                            {order.fulfilmentMode === "pickup"
+                              ? "Store Pickup"
+                              : "Doorstep Delivery"}
+                          </span>
                         </p>
                       </div>
 
@@ -232,122 +240,33 @@ export default function OrdersPage() {
                           <p className="font-display font-semibold text-ink">
                             {formatPrice(order.totalAmount)}
                           </p>
-                          <span className="text-xs text-mist capitalize">
+                          <span className="text-xs font-medium capitalize text-navy-900/70">
                             {order.status.replaceAll("_", " ")}
                           </span>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setExpandedOrderId(isExpanded ? null : order.id)
-                          }
-                          className="rounded-full border border-navy-900/10 p-2 text-ink transition hover:bg-navy-900/5"
-                          aria-label={
-                            isExpanded ? "Hide details" : "View receipt"
-                          }
+                        <Link
+                          href={`/account/orders/${order.id}`}
+                          className="inline-flex items-center gap-1 rounded-full bg-navy-900 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-navy-800"
                         >
-                          {isExpanded ? (
-                            <ChevronUp size={18} />
-                          ) : (
-                            <ChevronDown size={18} />
-                          )}
-                        </button>
+                          View Details & Tracking
+                          <ArrowRight size={14} />
+                        </Link>
                       </div>
                     </div>
 
-                    {/* Expandable Immutable Invoice / Receipt */}
-                    {isExpanded && (
-                      <div className="border-t border-navy-900/10 bg-paper p-6 text-sm">
-                        <div className="flex justify-between items-center pb-4 border-b border-navy-900/10">
-                          <span className="font-semibold text-navy-900 flex items-center gap-2">
-                            <FileText size={16} /> Order Receipt & Breakdown
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => window.print()}
-                            className="inline-flex items-center gap-1.5 rounded-full border border-navy-900/20 bg-white px-3 py-1.5 text-xs font-semibold text-navy-900 hover:bg-navy-900/5"
-                          >
-                            <Printer size={13} /> Print Invoice
-                          </button>
-                        </div>
-
-                        {/* Items list */}
-                        <div className="mt-4 divide-y divide-navy-900/5">
-                          {order.items.map((item, idx) => (
-                            <div
-                              key={
-                                item.sku
-                                  ? `${item.sku}-${idx}`
-                                  : `${item.name}-${idx}`
-                              }
-                              className="py-2.5 flex justify-between gap-3 text-xs"
-                            >
-                              <div>
-                                <strong className="text-ink">
-                                  {item.name}
-                                </strong>
-                                {item.sku && (
-                                  <span className="text-mist block">
-                                    SKU: {item.sku}
-                                  </span>
-                                )}
-                              </div>
-                              <span className="text-mist">
-                                {item.quantity} × {formatPrice(item.price)} ={" "}
-                                <strong className="text-ink">
-                                  {formatPrice(item.price * item.quantity)}
-                                </strong>
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* Summary & Fulfilment Details */}
-                        <div className="mt-4 grid gap-4 pt-4 border-t border-navy-900/10 sm:grid-cols-2 text-xs">
-                          <div className="rounded-xl bg-white p-3 border border-navy-900/5">
-                            <span className="font-semibold text-ink flex items-center gap-1.5">
-                              {order.fulfilmentMode === "pickup" ? (
-                                <Store size={14} className="text-navy-900" />
-                              ) : (
-                                <Truck size={14} className="text-navy-900" />
-                              )}
-                              Fulfilment:{" "}
-                              {order.fulfilmentMode === "pickup"
-                                ? "Store Pickup"
-                                : "Doorstep Delivery"}
-                            </span>
-                            {order.fulfilmentMode === "pickup" ? (
-                              <p className="mt-1 text-mist">
-                                {order.pickupLocation ||
-                                  "Sanfaani Store — Main Branch"}
-                              </p>
-                            ) : (
-                              <p className="mt-1 text-mist">
-                                {order.shippingAddress?.street},{" "}
-                                {order.shippingAddress?.city},{" "}
-                                {order.shippingAddress?.state}
-                              </p>
-                            )}
-                          </div>
-
-                          <div className="space-y-1 rounded-xl bg-white p-3 border border-navy-900/5 text-right">
-                            <div className="flex justify-between text-mist">
-                              <span>Delivery Fee:</span>
-                              <span>
-                                {order.deliveryFee
-                                  ? formatPrice(order.deliveryFee)
-                                  : "FREE"}
-                              </span>
-                            </div>
-                            <div className="flex justify-between font-bold text-ink border-t border-navy-900/10 pt-1 text-sm">
-                              <span>Grand Total:</span>
-                              <span>{formatPrice(order.totalAmount)}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                    <div className="mt-4 border-t border-navy-900/5 pt-3">
+                      <p className="text-xs text-mist flex items-center gap-1.5">
+                        <Package size={13} />
+                        {order.items.length} item
+                        {order.items.length === 1 ? "" : "s"}:{" "}
+                        <span className="text-ink font-medium">
+                          {order.items
+                            .map((i) => `${i.name} (x${i.quantity})`)
+                            .join(", ")}
+                        </span>
+                      </p>
+                    </div>
                   </article>
                 );
               })}

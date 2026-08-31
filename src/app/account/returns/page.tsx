@@ -3,10 +3,21 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ApiState";
 import { customerApiMessage } from "@/lib/api/customerStates";
-import { evidenceValidationMessage, uploadEvidenceFile } from "@/lib/api/evidenceApi";
-import { listMyReturns, listReturnOrders, submitReturn, type ReturnOrder, type ReturnRequest } from "@/lib/api/warrantyApi";
+import {
+  evidenceValidationMessage,
+  uploadEvidenceFile,
+} from "@/lib/api/evidenceApi";
+import {
+  listMyReturns,
+  listReturnOrders,
+  submitReturn,
+  type ReturnOrder,
+  type ReturnRequest,
+} from "@/lib/api/warrantyApi";
 
-function statusLabel(status: string) { return status.toLowerCase().replaceAll("_", " "); }
+function statusLabel(status: string) {
+  return status.toLowerCase().replaceAll("_", " ");
+}
 export default function ReturnsPage() {
   const [orders, setOrders] = useState<ReturnOrder[]>([]);
   const [returns, setReturns] = useState<ReturnRequest[]>([]);
@@ -16,15 +27,297 @@ export default function ReturnsPage() {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [reason, setReason] = useState("");
   const [pending, setPending] = useState(false);
-  const [createdReturn, setCreatedReturn] = useState<ReturnRequest | null>(null);
+  const [createdReturn, setCreatedReturn] = useState<ReturnRequest | null>(
+    null,
+  );
   const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
   const [evidencePending, setEvidencePending] = useState(false);
   const [evidenceMessage, setEvidenceMessage] = useState("");
   const currentOrder = orders.find((order) => order.id === orderId) ?? null;
-  const load = useCallback(async () => { setState("loading"); try { const [ownedOrders, ownedReturns] = await Promise.all([listReturnOrders(), listMyReturns()]); setOrders(ownedOrders); setReturns(ownedReturns); setState("ready"); } catch (error) { setMessage(customerApiMessage(error, "Returns are unavailable.")); setState("error"); } }, []);
-  useEffect(() => { const timer = window.setTimeout(() => { void load(); }, 0); return () => window.clearTimeout(timer); }, [load]);
-  function changeOrder(next: string) { setOrderId(next); setQuantities({}); }
-  async function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (!currentOrder || pending) return; const items = currentOrder.items.flatMap((item) => { const quantity = quantities[item.variantSku] ?? 0; return quantity > 0 && quantity <= item.quantity ? [{ variantSku: item.variantSku, quantity }] : []; }); if (!items.length) { setMessage("Select at least one valid item quantity."); return; } if (reason.trim().length < 3) { setMessage("Provide a reason of at least three characters."); return; } setPending(true); setMessage(""); try { const created = await submitReturn(currentOrder.id, items, reason); setCreatedReturn(created); setReason(""); setQuantities({}); await load(); setMessage("Your return request was confirmed by the service."); } catch (error) { setMessage(customerApiMessage(error, "We could not submit the return request.")); } finally { setPending(false); } }
-  async function uploadEvidence() { if (!createdReturn || !evidenceFile || evidencePending) return; const validation = evidenceValidationMessage(evidenceFile); if (validation) { setEvidenceMessage(validation); return; } setEvidencePending(true); setEvidenceMessage(""); try { await uploadEvidenceFile({ file: evidenceFile, subjectType: "return_request", subjectId: createdReturn.id, purpose: "return" }); setEvidenceFile(null); setEvidenceMessage("Evidence was confirmed by the service."); } catch (error) { setEvidenceMessage(customerApiMessage(error, "We could not upload that evidence.")); } finally { setEvidencePending(false); } }
-  return <main id="main-content" className="mx-auto max-w-4xl px-6 py-12"><h1 className="font-display text-3xl font-semibold">Returns</h1><p className="mt-2 text-sm text-mist">Returns are submitted only for orders returned by your owner-scoped account. The backend does not expose an eligibility decision or refund-completion state, so this page does not promise either.</p>{state === "loading" ? <div className="mt-6"><LoadingState>Loading orders and return requests…</LoadingState></div> : state === "error" ? <div className="mt-6"><ErrorState message={message || "Returns are unavailable."} onRetry={() => void load()} /></div> : <><form noValidate onSubmit={submit} className="mt-6 space-y-5 rounded-2xl border border-navy-900/10 bg-white p-6"><h2 className="font-display text-xl font-semibold">Request a return</h2>{orders.length === 0 ? <EmptyState title="No owned orders available">A return can only be requested from an order available through your account.</EmptyState> : <><label className="block text-sm font-semibold">Order<select required value={orderId} onChange={(event) => changeOrder(event.target.value)} className="mt-1 w-full rounded-xl border border-navy-900/20 p-2 font-normal"><option value="">Select an order</option>{orders.map((order) => <option key={order.id} value={order.id}>Order {order.id}{order.createdAt ? " — " + new Date(order.createdAt).toLocaleDateString() : ""}</option>)}</select></label>{currentOrder && <fieldset><legend className="text-sm font-semibold">Items and quantities</legend><div className="mt-2 space-y-2">{currentOrder.items.map((item) => <label key={item.variantSku} className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-paper p-3 text-sm"><span>{item.name} <span className="text-mist">(ordered: {item.quantity})</span></span><input type="number" min={0} max={item.quantity} value={quantities[item.variantSku] ?? 0} onChange={(event) => setQuantities({ ...quantities, [item.variantSku]: Number(event.target.value) })} aria-label={"Return quantity for " + item.name} className="w-20 rounded border border-navy-900/20 p-1.5" /></label>)}</div></fieldset>}<label className="block text-sm font-semibold">Reason<textarea required minLength={3} maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} rows={4} className="mt-1 w-full rounded-xl border border-navy-900/20 p-2 font-normal" /></label><button disabled={pending || !currentOrder} className="rounded-full bg-gold px-5 py-3 font-semibold text-navy-900 disabled:opacity-50">{pending ? "Submitting…" : "Submit return request"}</button></>}</form>{createdReturn && <section className="mt-5 rounded-2xl border border-navy-900/10 bg-white p-5"><h2 className="font-semibold">Optional evidence for return {createdReturn.id}</h2><p className="mt-1 text-sm text-mist">Attach one JPEG, PNG, or PDF no larger than 5 MiB. Evidence is sent only after this return request is confirmed.</p><label className="mt-3 block text-sm font-semibold">Evidence file<input type="file" accept="image/jpeg,image/png,application/pdf" onChange={(event) => { setEvidenceFile(event.currentTarget.files?.[0] ?? null); setEvidenceMessage(""); }} className="mt-1 block w-full text-sm font-normal" /></label><button type="button" disabled={!evidenceFile || evidencePending} onClick={() => void uploadEvidence()} className="mt-3 rounded-full border border-navy-900/20 px-4 py-2 text-sm font-semibold disabled:opacity-50">{evidencePending ? "Uploading…" : "Upload evidence"}</button>{evidenceMessage && <p role="status" className="mt-3 text-sm text-mist">{evidenceMessage}</p>}</section>}{message && <p role="status" className="mt-4 text-sm text-mist">{message}</p>}<section className="mt-9" aria-labelledby="returns-heading"><h2 id="returns-heading" className="font-display text-2xl font-semibold">My return requests</h2>{returns.length === 0 ? <div className="mt-4"><EmptyState title="No return requests">Your submitted requests will appear here.</EmptyState></div> : <ul className="mt-4 space-y-3">{returns.map((request) => <li key={request.id} className="rounded-xl border border-navy-900/10 bg-white p-4"><div className="flex flex-wrap justify-between gap-2"><p className="font-semibold">Return {request.id}</p><p className="text-sm capitalize text-mist">{statusLabel(request.status)}</p></div>{request.remedy && <p className="mt-2 text-sm text-mist">Server-confirmed remedy: {request.remedy.replaceAll("_", " ")}</p>}{request.updatedAt && <p className="mt-2 text-xs text-mist">Last updated {new Date(request.updatedAt).toLocaleString()}</p>}</li>)}</ul>}</section></>}</main>;
+  const load = useCallback(async () => {
+    setState("loading");
+    try {
+      const [ownedOrders, ownedReturns] = await Promise.all([
+        listReturnOrders(),
+        listMyReturns(),
+      ]);
+      setOrders(ownedOrders);
+      setReturns(ownedReturns);
+      setState("ready");
+    } catch (error) {
+      setMessage(customerApiMessage(error, "Returns are unavailable."));
+      setState("error");
+    }
+  }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
+  function changeOrder(next: string) {
+    setOrderId(next);
+    setQuantities({});
+  }
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!currentOrder || pending) return;
+    const items = currentOrder.items.flatMap((item) => {
+      const quantity = quantities[item.variantSku] ?? 0;
+      return quantity > 0 && quantity <= item.quantity
+        ? [{ variantSku: item.variantSku, quantity }]
+        : [];
+    });
+    if (!items.length) {
+      setMessage("Select at least one valid item quantity.");
+      return;
+    }
+    if (reason.trim().length < 3) {
+      setMessage("Provide a reason of at least three characters.");
+      return;
+    }
+    setPending(true);
+    setMessage("");
+    try {
+      const created = await submitReturn(currentOrder.id, items, reason);
+      setCreatedReturn(created);
+      setReason("");
+      setQuantities({});
+      await load();
+      setMessage("Your return request was confirmed by the service.");
+    } catch (error) {
+      setMessage(
+        customerApiMessage(error, "We could not submit the return request."),
+      );
+    } finally {
+      setPending(false);
+    }
+  }
+  async function uploadEvidence() {
+    if (!createdReturn || !evidenceFile || evidencePending) return;
+    const validation = evidenceValidationMessage(evidenceFile);
+    if (validation) {
+      setEvidenceMessage(validation);
+      return;
+    }
+    setEvidencePending(true);
+    setEvidenceMessage("");
+    try {
+      await uploadEvidenceFile({
+        file: evidenceFile,
+        subjectType: "return_request",
+        subjectId: createdReturn.id,
+        purpose: "return",
+      });
+      setEvidenceFile(null);
+      setEvidenceMessage("Evidence was confirmed by the service.");
+    } catch (error) {
+      setEvidenceMessage(
+        customerApiMessage(error, "We could not upload that evidence."),
+      );
+    } finally {
+      setEvidencePending(false);
+    }
+  }
+  return (
+    <main id="main-content" className="mx-auto max-w-4xl px-6 py-12">
+      <h1 className="font-display text-3xl font-semibold">Returns</h1>
+      <p className="mt-2 text-sm text-mist">
+        Returns are submitted only for orders returned by your owner-scoped
+        account. The backend does not expose an eligibility decision or
+        refund-completion state, so this page does not promise either.
+      </p>
+      {state === "loading" ? (
+        <div className="mt-6">
+          <LoadingState>Loading orders and return requests…</LoadingState>
+        </div>
+      ) : state === "error" ? (
+        <div className="mt-6">
+          <ErrorState
+            message={message || "Returns are unavailable."}
+            onRetry={() => void load()}
+          />
+        </div>
+      ) : (
+        <>
+          <form
+            noValidate
+            onSubmit={submit}
+            className="mt-6 space-y-5 rounded-2xl border border-navy-900/10 bg-white p-6"
+          >
+            <h2 className="font-display text-xl font-semibold">
+              Request a return
+            </h2>
+            {orders.length === 0 ? (
+              <EmptyState title="No owned orders available">
+                A return can only be requested from an order available through
+                your account.
+              </EmptyState>
+            ) : (
+              <>
+                <label className="block text-sm font-semibold">
+                  Order
+                  <select
+                    required
+                    value={orderId}
+                    onChange={(event) => changeOrder(event.target.value)}
+                    className="mt-1 w-full rounded-xl border border-navy-900/20 p-2 font-normal"
+                  >
+                    <option value="">Select an order</option>
+                    {orders.map((order) => (
+                      <option key={order.id} value={order.id}>
+                        Order {order.id}
+                        {order.createdAt
+                          ? " — " +
+                            new Date(order.createdAt).toLocaleDateString()
+                          : ""}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {currentOrder && (
+                  <fieldset>
+                    <legend className="text-sm font-semibold">
+                      Items and quantities
+                    </legend>
+                    <div className="mt-2 space-y-2">
+                      {currentOrder.items.map((item) => (
+                        <label
+                          key={item.variantSku}
+                          className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-paper p-3 text-sm"
+                        >
+                          <span>
+                            {item.name}{" "}
+                            <span className="text-mist">
+                              (ordered: {item.quantity})
+                            </span>
+                          </span>
+                          <input
+                            type="number"
+                            min={0}
+                            max={item.quantity}
+                            value={quantities[item.variantSku] ?? 0}
+                            onChange={(event) =>
+                              setQuantities({
+                                ...quantities,
+                                [item.variantSku]: Number(event.target.value),
+                              })
+                            }
+                            aria-label={"Return quantity for " + item.name}
+                            className="w-20 rounded border border-navy-900/20 p-1.5"
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                )}
+                <label className="block text-sm font-semibold">
+                  Reason
+                  <textarea
+                    required
+                    minLength={3}
+                    maxLength={500}
+                    value={reason}
+                    onChange={(event) => setReason(event.target.value)}
+                    rows={4}
+                    className="mt-1 w-full rounded-xl border border-navy-900/20 p-2 font-normal"
+                  />
+                </label>
+                <button
+                  disabled={pending || !currentOrder}
+                  className="rounded-full bg-gold px-5 py-3 font-semibold text-navy-900 disabled:opacity-50"
+                >
+                  {pending ? "Submitting…" : "Submit return request"}
+                </button>
+              </>
+            )}
+          </form>
+          {createdReturn && (
+            <section className="mt-5 rounded-2xl border border-navy-900/10 bg-white p-5">
+              <h2 className="font-semibold">
+                Optional evidence for return {createdReturn.id}
+              </h2>
+              <p className="mt-1 text-sm text-mist">
+                Attach one JPEG, PNG, or PDF no larger than 5 MiB. Evidence is
+                sent only after this return request is confirmed.
+              </p>
+              <label className="mt-3 block text-sm font-semibold">
+                Evidence file
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,application/pdf"
+                  onChange={(event) => {
+                    setEvidenceFile(event.currentTarget.files?.[0] ?? null);
+                    setEvidenceMessage("");
+                  }}
+                  className="mt-1 block w-full text-sm font-normal"
+                />
+              </label>
+              <button
+                type="button"
+                disabled={!evidenceFile || evidencePending}
+                onClick={() => void uploadEvidence()}
+                className="mt-3 rounded-full border border-navy-900/20 px-4 py-2 text-sm font-semibold disabled:opacity-50"
+              >
+                {evidencePending ? "Uploading…" : "Upload evidence"}
+              </button>
+              {evidenceMessage && (
+                <p role="status" className="mt-3 text-sm text-mist">
+                  {evidenceMessage}
+                </p>
+              )}
+            </section>
+          )}
+          {message && (
+            <p role="status" className="mt-4 text-sm text-mist">
+              {message}
+            </p>
+          )}
+          <section className="mt-9" aria-labelledby="returns-heading">
+            <h2
+              id="returns-heading"
+              className="font-display text-2xl font-semibold"
+            >
+              My return requests
+            </h2>
+            {returns.length === 0 ? (
+              <div className="mt-4">
+                <EmptyState title="No return requests">
+                  Your submitted requests will appear here.
+                </EmptyState>
+              </div>
+            ) : (
+              <ul className="mt-4 space-y-3">
+                {returns.map((request) => (
+                  <li
+                    key={request.id}
+                    className="rounded-xl border border-navy-900/10 bg-white p-4"
+                  >
+                    <div className="flex flex-wrap justify-between gap-2">
+                      <p className="font-semibold">Return {request.id}</p>
+                      <p className="text-sm capitalize text-mist">
+                        {statusLabel(request.status)}
+                      </p>
+                    </div>
+                    {request.remedy && (
+                      <p className="mt-2 text-sm text-mist">
+                        Server-confirmed remedy:{" "}
+                        {request.remedy.replaceAll("_", " ")}
+                      </p>
+                    )}
+                    {request.updatedAt && (
+                      <p className="mt-2 text-xs text-mist">
+                        Last updated{" "}
+                        {new Date(request.updatedAt).toLocaleString()}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </>
+      )}
+    </main>
+  );
 }
