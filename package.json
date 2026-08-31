@@ -22,7 +22,8 @@
     "ci": "pnpm api:check && pnpm type-check && pnpm lint && pnpm test && pnpm build && pnpm test:e2e",
     "mobile:validate": "pnpm --dir mobile validate",
     "mobile:type-check": "pnpm --dir mobile type-check",
-    "mobile:test": "pnpm --dir mobile test"
+    "mobile:test": "pnpm --dir mobile test",
+    "test:customer-tickets": "tsx --test tests/unit/customer-tickets.test.ts"
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.12.0",
