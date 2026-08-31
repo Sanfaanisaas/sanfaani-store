@@ -24,8 +24,14 @@ const cartSlice = createSlice({
   name: "cart",
   initialState,
   reducers: {
+    setCart: (_state, action: PayloadAction<CartItem[]>) => {
+      return action.payload.filter(
+        (item) =>
+          item.availability !== "sourcing" &&
+          item.availability !== "out_of_stock",
+      );
+    },
     addToCart: (state, action: PayloadAction<CartItem>) => {
-      // BE-01 Guard: Sourcing & Out-of-stock variants cannot enter a cart
       if (
         action.payload.availability === "sourcing" ||
         action.payload.availability === "out_of_stock"
@@ -34,12 +40,13 @@ const cartSlice = createSlice({
       }
 
       const existingItem = state.find(
-        (item) => item.variantId === action.payload.variantId,
+        (item) =>
+          item.sku === action.payload.sku ||
+          item.variantId === action.payload.variantId,
       );
 
       if (existingItem) {
         const targetQuantity = existingItem.quantity + action.payload.quantity;
-        // Cap quantity to available stock if provided
         if (existingItem.maxStock !== undefined) {
           existingItem.quantity = Math.min(
             targetQuantity,
@@ -62,17 +69,13 @@ const cartSlice = createSlice({
     },
     updateQuantity: (
       state,
-      action: PayloadAction<{ variantId: string; quantity: number }>,
+      action: PayloadAction<{ sku: string; quantity: number }>,
     ) => {
-      const item = state.find(
-        (entry) => entry.variantId === action.payload.variantId,
-      );
+      const item = state.find((entry) => entry.sku === action.payload.sku);
 
       if (item) {
         if (action.payload.quantity <= 0) {
-          return state.filter(
-            (entry) => entry.variantId !== action.payload.variantId,
-          );
+          return state.filter((entry) => entry.sku !== action.payload.sku);
         }
 
         if (item.maxStock !== undefined) {
@@ -83,47 +86,31 @@ const cartSlice = createSlice({
       }
     },
     removeFromCart: (state, action: PayloadAction<string>) => {
-      return state.filter((item) => item.variantId !== action.payload);
+      return state.filter(
+        (item) =>
+          item.sku !== action.payload && item.variantId !== action.payload,
+      );
     },
     clearCart: () => {
       return [];
     },
-    syncCartFromStorage: (state, action: PayloadAction<CartItem[]>) => {
-      // Filter out any stored items that have turned into sourcing variants
-      const validIncoming = action.payload.filter(
+    syncCartFromStorage: (_state, action: PayloadAction<CartItem[]>) => {
+      return action.payload.filter(
         (item) =>
           item.availability !== "sourcing" &&
           item.availability !== "out_of_stock",
       );
-
-      const merged = [...state];
-
-      validIncoming.forEach((item) => {
-        const existingItem = merged.find(
-          (entry) => entry.variantId === item.variantId,
-        );
-
-        if (existingItem) {
-          const totalQty = existingItem.quantity + item.quantity;
-          existingItem.quantity =
-            existingItem.maxStock !== undefined
-              ? Math.min(totalQty, existingItem.maxStock)
-              : totalQty;
-        } else {
-          merged.push(item);
-        }
-      });
-
-      return merged;
     },
   },
 });
 
 export const {
+  setCart,
   addToCart,
   updateQuantity,
   removeFromCart,
   clearCart,
   syncCartFromStorage,
 } = cartSlice.actions;
+
 export default cartSlice.reducer;
