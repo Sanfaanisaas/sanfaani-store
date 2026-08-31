@@ -3,5 +3,85 @@ import { useCallback, useEffect, useState } from "react";
 import { apiClient, errorMessage } from "@/lib/api/client";
 import type { RepairQueueItem } from "@/lib/api/contracts";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ApiState";
-function normalizeRepair(value: unknown): RepairQueueItem { const item = value as Record<string, unknown>; return { id: String(item.id ?? item._id ?? ""), status: String(item.status ?? "REQUESTED") as RepairQueueItem["status"], updatedAt: typeof item.updatedAt === "string" ? item.updatedAt : new Date(0).toISOString(), dueAt: typeof item.dueAt === "string" ? item.dueAt : null, priority: typeof item.priority === "string" ? item.priority as RepairQueueItem["priority"] : undefined }; }
-export default function RepairQueuePage() { const [repairs, setRepairs] = useState<RepairQueueItem[]>([]); const [state, setState] = useState<"loading" | "ready" | "error">("loading"); const [message, setMessage] = useState("Repair queue unavailable."); const load = useCallback(async () => { try { const data = await apiClient.get<unknown[]>("/repairs/queue?page=1&limit=50"); setRepairs(Array.isArray(data) ? data.map(normalizeRepair).filter((repair) => repair.id) : []); setState("ready"); } catch (error) { setMessage(errorMessage(error, "Repair queue unavailable.")); setState("error"); } }, []); useEffect(() => { const timer = window.setTimeout(() => { void load(); }, 0); return () => window.clearTimeout(timer); }, [load]); return <main className="mx-auto max-w-6xl px-6 py-10"><h1 className="font-display text-3xl font-semibold">Repair queue</h1><section className="mt-6">{state === "loading" ? <LoadingState>Loading repair queue…</LoadingState> : state === "error" ? <ErrorState message={message} onRetry={() => void load()} /> : repairs.length === 0 ? <EmptyState title="No repair records in your queue" /> : <div className="overflow-x-auto rounded-2xl border bg-white"><table className="w-full min-w-[520px] text-left text-sm"><thead><tr className="border-b bg-paper"><th className="p-4">Repair</th><th className="p-4">Status</th><th className="p-4">Priority</th><th className="p-4">Updated</th></tr></thead><tbody>{repairs.map((repair) => <tr key={repair.id} className="border-b"><td className="p-4 font-semibold">{repair.id}</td><td className="p-4">{repair.status}</td><td className="p-4">{repair.priority ?? "NORMAL"}</td><td className="p-4">{new Date(repair.updatedAt).toLocaleString()}</td></tr>)}</tbody></table></div>}</section></main>; }
+function normalizeRepair(value: unknown): RepairQueueItem {
+  const item = value as Record<string, unknown>;
+  return {
+    id: String(item.id ?? item._id ?? ""),
+    status: String(item.status ?? "REQUESTED") as RepairQueueItem["status"],
+    updatedAt:
+      typeof item.updatedAt === "string"
+        ? item.updatedAt
+        : new Date(0).toISOString(),
+    dueAt: typeof item.dueAt === "string" ? item.dueAt : null,
+    priority:
+      typeof item.priority === "string"
+        ? (item.priority as RepairQueueItem["priority"])
+        : undefined,
+  };
+}
+export default function RepairQueuePage() {
+  const [repairs, setRepairs] = useState<RepairQueueItem[]>([]);
+  const [state, setState] = useState<"loading" | "ready" | "error">("loading");
+  const [message, setMessage] = useState("Repair queue unavailable.");
+  const load = useCallback(async () => {
+    try {
+      const data = await apiClient.get<unknown[]>(
+        "/repairs/queue?page=1&limit=50",
+      );
+      setRepairs(
+        Array.isArray(data)
+          ? data.map(normalizeRepair).filter((repair) => repair.id)
+          : [],
+      );
+      setState("ready");
+    } catch (error) {
+      setMessage(errorMessage(error, "Repair queue unavailable."));
+      setState("error");
+    }
+  }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
+  return (
+    <main className="mx-auto max-w-6xl px-6 py-10">
+      <h1 className="font-display text-3xl font-semibold">Repair queue</h1>
+      <section className="mt-6">
+        {state === "loading" ? (
+          <LoadingState>Loading repair queue…</LoadingState>
+        ) : state === "error" ? (
+          <ErrorState message={message} onRetry={() => void load()} />
+        ) : repairs.length === 0 ? (
+          <EmptyState title="No repair records in your queue" />
+        ) : (
+          <div className="overflow-x-auto rounded-2xl border bg-white">
+            <table className="w-full min-w-[520px] text-left text-sm">
+              <thead>
+                <tr className="border-b bg-paper">
+                  <th className="p-4">Repair</th>
+                  <th className="p-4">Status</th>
+                  <th className="p-4">Priority</th>
+                  <th className="p-4">Updated</th>
+                </tr>
+              </thead>
+              <tbody>
+                {repairs.map((repair) => (
+                  <tr key={repair.id} className="border-b">
+                    <td className="p-4 font-semibold">{repair.id}</td>
+                    <td className="p-4">{repair.status}</td>
+                    <td className="p-4">{repair.priority ?? "NORMAL"}</td>
+                    <td className="p-4">
+                      {new Date(repair.updatedAt).toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </main>
+  );
+}

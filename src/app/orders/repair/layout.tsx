@@ -14,6 +14,14 @@ const REPAIR_QUEUE_ROLES = [
   "super_admin",
 ] as const;
 
-export default function RepairOrdersLayout({ children }: { children: React.ReactNode }) {
-  return <ProtectedRoute allowedRoles={REPAIR_QUEUE_ROLES}>{children}</ProtectedRoute>;
+export default function RepairOrdersLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <ProtectedRoute allowedRoles={REPAIR_QUEUE_ROLES}>
+      {children}
+    </ProtectedRoute>
+  );
 }
