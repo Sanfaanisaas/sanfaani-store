@@ -2,27 +2,48 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect, useRef, useCallback } from "react";
-import { Menu, X } from "lucide-react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import { Menu, X, User, LogOut } from "lucide-react";
+import type { RootState, AppDispatch } from "@/lib/redux/store";
+import { logoutUser } from "@/lib/redux/slices/authSlice";
 
 export default function Navbar() {
   const pathname = usePathname();
+  const dispatch = useDispatch<AppDispatch>();
+  const { isAuthenticated, user } = useSelector(
+    (state: RootState) => state.auth,
+  );
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const drawerRef = useRef<HTMLDivElement | null>(null);
 
-  const navLinks = [
-    { label: "Home", href: "/" },
-    { label: "Shop", href: "/shop" },
-    { label: "Repair", href: "/repair/request" },
-    { label: "Track", href: "/repair/track" },
-    { label: "Orders", href: "/account/orders" },
-  ];
+  // Show "Orders" only when the user is logged in
+  const navLinks = useMemo(() => {
+    const links = [
+      { label: "Home", href: "/" },
+      { label: "Shop", href: "/shop" },
+      { label: "Repair", href: "/repair/request" },
+      { label: "Track", href: "/repair/track" },
+    ];
+
+    if (isAuthenticated) {
+      links.push({ label: "Orders", href: "/account/orders" });
+    }
+
+    return links;
+  }, [isAuthenticated]);
 
   const closeMenu = useCallback(() => {
     setIsMenuOpen(false);
     triggerRef.current?.focus();
   }, []);
+
+  function handleLogout() {
+    void dispatch(logoutUser());
+    closeMenu();
+  }
 
   // Handle Escape key and focus trapping inside mobile drawer
   useEffect(() => {
@@ -32,7 +53,7 @@ export default function Navbar() {
     const originalStyle = window.getComputedStyle(document.body).overflow;
     document.body.style.overflow = "hidden";
 
-    // Auto-focus the drawer
+    // Auto-focus the first element in drawer
     const focusableElements = drawerRef.current?.querySelectorAll<HTMLElement>(
       'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])',
     );
@@ -114,19 +135,42 @@ export default function Navbar() {
         </nav>
 
         <div className="flex items-center gap-3">
+          {/* Desktop Auth Controls */}
           <div className="hidden items-center gap-3 md:flex">
-            <Link
-              href="/login"
-              className="text-sm font-medium text-paper/90 hover:text-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold rounded-md px-2 py-1"
-            >
-              Log in
-            </Link>
-            <Link
-              href="/register"
-              className="rounded-full bg-gold px-5 py-2 text-sm font-medium text-navy-900 transition hover:bg-gold/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-            >
-              Sign up
-            </Link>
+            {isAuthenticated ? (
+              <div className="flex items-center gap-3">
+                <Link
+                  href="/account/orders"
+                  className="flex items-center gap-1.5 text-xs font-semibold text-paper/90 hover:text-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold rounded-md px-2 py-1"
+                >
+                  <User size={14} className="text-gold" />
+                  <span>{user?.name?.split(" ")[0] || "Account"}</span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  aria-label="Log out"
+                  className="flex items-center gap-1 text-xs text-mist hover:text-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold rounded-md p-1"
+                >
+                  <LogOut size={14} />
+                </button>
+              </div>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="text-sm font-medium text-paper/90 hover:text-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold rounded-md px-2 py-1"
+                >
+                  Log in
+                </Link>
+                <Link
+                  href="/register"
+                  className="rounded-full bg-gold px-5 py-2 text-sm font-medium text-navy-900 transition hover:bg-gold/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                >
+                  Sign up
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Toggle */}
@@ -184,21 +228,43 @@ export default function Navbar() {
                 );
               })}
               <hr className="border-paper/10 my-1" />
+
+              {/* Mobile Auth Controls */}
               <div className="flex flex-col gap-3">
-                <Link
-                  href="/login"
-                  className="text-base font-medium text-paper/80 hover:text-paper"
-                  onClick={closeMenu}
-                >
-                  Log in
-                </Link>
-                <Link
-                  href="/register"
-                  className="inline-block rounded-xl bg-gold px-6 py-3 text-center text-sm font-bold text-navy-900 hover:bg-gold/90"
-                  onClick={closeMenu}
-                >
-                  Sign up
-                </Link>
+                {isAuthenticated ? (
+                  <>
+                    <p className="text-xs text-mist">
+                      Signed in as{" "}
+                      <strong className="text-paper">
+                        {user?.name || user?.email}
+                      </strong>
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 py-2.5 text-center text-sm font-semibold text-red-300 hover:bg-red-500/20"
+                    >
+                      <LogOut size={16} /> Log out
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      href="/login"
+                      className="text-base font-medium text-paper/80 hover:text-paper"
+                      onClick={closeMenu}
+                    >
+                      Log in
+                    </Link>
+                    <Link
+                      href="/register"
+                      className="inline-block rounded-xl bg-gold px-6 py-3 text-center text-sm font-bold text-navy-900 hover:bg-gold/90"
+                      onClick={closeMenu}
+                    >
+                      Sign up
+                    </Link>
+                  </>
+                )}
               </div>
             </nav>
           </div>
