@@ -14,6 +14,7 @@ const columns = [
     links: [
       { label: "Request a Repair", href: "/repair/request" },
       { label: "Track a Repair", href: "/repair/track" },
+      { label: "Track an Order", href: "/orders/track" },
       { label: "Warranty", href: "/policies/warranty" },
       { label: "Returns", href: "/policies/returns" },
     ],

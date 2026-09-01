@@ -1,29 +1,42 @@
-# Route-to-PRD matrix
+# Route-to-PRD matrix (Phase 1)
 
-| Route/screen | Audience/domain | Data source | Auth/role | UI states | Ticket |
-|---|---|---|---|---|---|
-| /, /shop, /shop/[id] | Public catalogue | Typed products API | Public | Loading, empty, unavailable, retry | FE-01/15/16 |
-| /guides, /guides/[slug] | Buyers / guides | Versioned repository content | Public | Not found, safe content | FE-15 |
-| /login, /register | Customers/staff | Auth API + HTTP-only refresh cookie | Public entry | Restoring, validation, expired, unavailable | FE-02 |
-| /account/* | Customer account | Typed orders/support APIs | Customer | Loading, empty, forbidden, unavailable | FE-01/02 |
-| /checkout, /cart | Customer purchase | Cart/checkout/payment APIs | Customer/guest cart | Validation, conflict, retry | FE-01/02/17 |
-| /repair/request, /repair/track/[id] | Customer repair | Repairs API | Customer | Validation, quote decision, forbidden | FE-01/02/17 |
-| /support | Customer support | Support API | Customer | Loading, empty, validation, unavailable | FE-01/15 |
-| /operations, /operations/admin | Operations staff | Dashboard queue API | Operations roles | Forbidden, loading, empty, retry | FE-02/08/17 |
-| Mobile catalogue/search/PDP | Customer | Shared contracts + products API | Public | Loading, offline, empty, retry | FE-19 |
-| Mobile cart/checkout | Customer | Shared checkout APIs | Customer | Validation, conflict, offline | FE-19 |
-| Mobile orders/repairs/account | Customer | Owner-scoped APIs | Customer | Expired, unavailable, stale cache | FE-19 |
-| Mobile push/deep links | Customer | Platform boundary; registration unavailable pending backend | Customer | Permission denied, unavailable | FE-19 |
+Captured frontend `main` against backend `Sanfaanisaas/sanfaani-storebackend` public customer routes. Backend absence is verified in source before marking unavailable.
 
-The routes in the authorized customer-flow addendum are implemented only to the documented backend support; their unavailable states are explicit. Other excluded domains remain outside this program.
+| route | audience | ticket/PRD domain | data source | authentication | role requirement | loading state | empty state | validation state | unauthorized state | forbidden state | unavailable state | test coverage | current completion status | known dependency |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `/` | Public | FE-14 | Static/marketing | None | None | N/A | N/A | N/A | N/A | N/A | N/A | `e2e/public-journeys`, `e2e/route-integrity` | Complete | None |
+| `/shop` | Public | FE-03 | `GET /products` + URL filters | None | None | Yes | Yes | Invalid URL filters fall back | N/A | N/A | API error retry | `tests/unit/catalogue-params`, `e2e/phase1-journeys` | Complete (client-side filters; backend list supports page/limit only) | Backend catalogue query filters |
+| `/shop/[id]` | Public | FE-03 | `GET /products/{slug}` | None | None | Yes | Not found | Variant validation | N/A | N/A | API unavailable | Unit normalizers, manual PDP | Complete | None |
+| `/cart` | Guest/customer | FE-04 | Guest storage + `GET/POST/PATCH/DELETE /cart*` | Optional | Customer for sync | Yes | Yes | Quantity bounds | Sign-in prompt for checkout | N/A | Merge/sync errors | `tests/unit/guest-cart-storage`, integration cart | Complete | Live stock revalidation |
+| `/checkout` | Customer | FE-05 | `POST /checkout`, `POST /payments/initiate` | Required | Customer | Yes | Empty cart | Address/payment validation | Redirect `/login` | N/A | Conflict/retry | `e2e/phase1-journeys` | Complete | Server shipping quote currently zero |
+| `/checkout/return` | Customer | FE-05 | `GET /orders/mine`, `GET /payments/{id}` | Required | Customer | Verifying | N/A | N/A | Redirect `/login` | Foreign order hidden | Provider delay pending | Checkout return flow | Complete | Dedicated order-by-id endpoint |
+| `/checkout/confirmation` | Customer | FE-05 | `GET /orders/mine` lookup | Required | Customer | Yes | Missing order | N/A | Redirect `/login` | Foreign order hidden | Pending payment | Confirmation page | Complete | Dedicated order-by-id endpoint |
+| `/login`, `/register` | Public | FE-02 | `/auth/login`, `/auth/register`, `/auth/refresh` | Entry | None | Restoring on boot | N/A | Form validation | N/A | N/A | Service unavailable | `tests/integration/session-recovery` | Complete | None |
+| `/account` | Customer | FE-02 | Auth session | Required | Customer | Restoring | N/A | N/A | Redirect `/login` | N/A | Unavailable banner | Protected route tests | Complete | None |
+| `/account/orders` | Customer | FE-06 | `GET /orders/mine` | Required | Customer | Yes | Yes | N/A | Redirect `/login` | N/A | Retry | Orders list page | Complete | Paginated lookup for detail |
+| `/account/orders/[id]` | Customer | FE-06 | `GET /orders/mine` scan, `PATCH /orders/{id}/cancel`, `GET /orders/{id}/receipt` | Required | Owner | Yes | Forbidden safe | Cancel eligibility | Redirect `/login` | Non-owner 404-safe | Receipt unavailable | `tests/unit/order-normalizer` | Complete | `GET /orders/{id}` owner detail |
+| `/orders/track` | Customer | FE-14 | Secure entry to `/account/orders/[id]` | Prompt sign-in | Customer | N/A | N/A | Reference required | Login redirect | Foreign order hidden | N/A | `e2e/phase1-journeys` | Complete | None |
+| `/repair/request` | Customer | FE-14 entry | Repairs API | Optional | Customer | Yes | N/A | Form validation | Scoped tracking token in memory | Foreign repair hidden | API unavailable | Existing repair tests | Shared infra only | FE-07 scope |
+| `/repair/track`, `/repair/track/[id]` | Customer | FE-14 | Repairs track API + in-memory credential | Optional bearer/scoped | Customer | Yes | Not found | Token required when signed out | Safe failure | Foreign repair hidden | API unavailable | Repair track tests | Shared infra only | FE-07 scope |
+| `/support` | Customer | FE-10 (out of phase) | Support API | Required | Customer | Yes | Empty | Validation | Redirect `/login` | N/A | API unavailable | Customer ticket tests | Out of Phase 1 | FE-10 |
+| `/guides`, `/guides/[slug]` | Public | FE-15 (out of phase) | Repository content | None | None | N/A | Not found | N/A | N/A | N/A | N/A | Content tests | Out of Phase 1 | FE-15 |
+| `/policies/*` | Public | FE-00 | Static policy pages | None | None | N/A | N/A | N/A | N/A | N/A | N/A | Route integrity | Complete | None |
+| `/operations`, `/operations/admin` | Staff | FE-08 (out of phase) | `GET /dashboard/queue` | Required | Operations roles | Yes | Empty queue | N/A | Redirect `/login` | Forbidden page | API unavailable | `e2e/public-journeys` guard | Out of Phase 1 | FE-08 |
 
-## Authorized customer-flow addendum (FE-07, FE-09–FE-13)
+## Commands verified
 
-| Route | Data source / state | Ticket |
-| --- | --- | --- |
-| /repair/request, /repair/track/[id] | Repairs API; JSON creation, safe bearer/scoped tracking, exact owner quote decision, authorised evidence | FE-07 |
-| /account/warranty, /account/returns | Owner claims/returns/orders APIs; missing warranty eligibility/detail marked unavailable | FE-09 |
-| /support, /notifications | Owner support tickets; notification API unavailable | FE-10 |
-| /guidance | Deterministic guidance API plus live public catalogue; limited saved-session resume | FE-11 |
-| /procurement | Customer procurement API unavailable; never calls internal procurement | FE-12 |
-| /services | Customer service/maintenance API unavailable | FE-13 |
+`lint`, `type-check`, `test`, `test:unit`, `test:integration`, `test:e2e`, `test:a11y`, `build`, `ci`, `api:generate`, `api:check`, `smoke:api`, `smoke:vercel`, `security:scan` — all wired in `package.json` to real scripts.
+
+## Environment
+
+| Variable | Purpose |
+| --- | --- |
+| `BACKEND_URL` | Server-only API origin for SSR/proxy |
+| `NEXT_PUBLIC_SITE_URL` | Canonical public site URL for metadata |
+| `API_SMOKE_URL` | Post-deploy health smoke target |
+| `VERCEL_SMOKE_URL` | Frontend deployment smoke target |
+| Vercel project | `sanfaani-store` |
+| Production URL | `https://sanfaani-store.vercel.app` |
+| Preview behavior | Isolated branch previews without production secrets |
+
+Never place secrets in `NEXT_PUBLIC_*`.

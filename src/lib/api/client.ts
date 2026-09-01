@@ -10,6 +10,7 @@ let refreshSession: (() => Promise<boolean>) | null = null;
 let clearSession: (() => void) | null = null;
 let refreshFlight: Promise<boolean> | null = null;
 export function setRuntimeAccessToken(token: string | null) { accessToken = token; }
+export function getRuntimeAccessToken() { return accessToken; }
 export function configureSessionRecovery(options: { refresh: () => Promise<boolean>; onExpired: () => void; }) { refreshSession = options.refresh; clearSession = options.onExpired; }
 function apiBaseUrl() { if (typeof window !== "undefined") return "/api"; const base = process.env.BACKEND_URL?.replace(/\/+$/, ""); return base ? base + "/api" : "/api"; }
 function joinSignals(signal: AbortSignal | undefined, timeoutMs: number) { const controller = new AbortController(); const timeout = setTimeout(() => controller.abort(new DOMException("Request timed out", "TimeoutError")), timeoutMs); const abort = () => controller.abort(signal?.reason); if (signal?.aborted) abort(); signal?.addEventListener("abort", abort, { once: true }); return { signal: controller.signal, cleanup: () => { clearTimeout(timeout); signal?.removeEventListener("abort", abort); } }; }

@@ -2,6 +2,8 @@ import { createAsyncThunk, createSlice, type PayloadAction } from "@reduxjs/tool
 import { errorMessage, ApiError, setRuntimeAccessToken } from "@/lib/api/client";
 import { loginRequest, logoutRequest, refreshRequest, registerRequest, type LoginPayload, type RegisterPayload } from "@/lib/api/authApi";
 import type { ApiUser, AuthSession } from "@/lib/api/contracts";
+import { clearPrivateCustomerState } from "@/lib/redux/sessionCleanup";
+import type { AppDispatch } from "@/lib/redux/store";
 
 export type SessionPhase = "restoring" | "signed_out" | "authenticated" | "expired" | "unavailable";
 export type AuthUser = ApiUser;
@@ -13,7 +15,9 @@ export const registerUser = createAsyncThunk("auth/registerUser", async (payload
 export const loginUser = createAsyncThunk("auth/loginUser", async (payload: LoginPayload, { rejectWithValue }) => { try { return storeSession(await loginRequest(payload)); } catch (error) { return rejectWithValue(errorMessage(error, "Invalid email or password.")); } });
 export const refreshSession = createAsyncThunk("auth/refreshSession", async (_, { rejectWithValue }) => { try { return storeSession(await refreshRequest()); } catch (error) { return rejectWithValue(error instanceof ApiError ? error.kind : "unknown"); } });
 /** Always clear local private state, even when the server cannot be reached. */
-export const logoutUser = createAsyncThunk("auth/logoutUser", async () => { try { await logoutRequest(); } finally { setRuntimeAccessToken(null); } });
+export const logoutUser = createAsyncThunk("auth/logoutUser", async (_, { dispatch }) => {
+  try { await logoutRequest(); } finally { setRuntimeAccessToken(null); clearPrivateCustomerState(dispatch as AppDispatch); }
+});
 
 const authSlice = createSlice({
   name: "auth", initialState,
