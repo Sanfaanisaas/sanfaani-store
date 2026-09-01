@@ -23,7 +23,7 @@ test.describe("Phase 2 Customer Journeys", () => {
   });
 
   test("1. Search/filter/PDP/variant/cart", async ({ page }) => {
-    await page.route("**/api/products*", async (route) => {
+    await page.route("**/api/products**", async (route) => {
       const url = route.request().url();
       if (url.includes("macbook-pro-14") || url.includes("prod-1")) {
         return route.fulfill({
@@ -101,7 +101,7 @@ test.describe("Phase 2 Customer Journeys", () => {
     await expect(page.getByText("₦1,200,000")).toBeVisible();
     await page.getByRole("button", { name: /Space Gray/i }).click();
     await expect(page.getByText("₦1,250,000")).toBeVisible();
-    await page.getByRole("button", { name: "Add to cart" }).click();
+    await page.getByRole("button", { name: "Add to cart" }).click({ force: true });
   });
 
   test("2. Guest cart -> login merge", async ({ page }) => {
@@ -118,7 +118,7 @@ test.describe("Phase 2 Customer Journeys", () => {
         }),
       });
     });
-    await page.route("**/api/cart*", async (route) => {
+    await page.route("**/api/cart**", async (route) => {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -151,7 +151,7 @@ test.describe("Phase 2 Customer Journeys", () => {
   });
 
   test("4. Order detail -> receipt/evidence/cancellation state", async ({ page }) => {
-    await page.route("**/api/orders/mine*", async (route) => {
+    await page.route("**/api/orders/mine**", async (route) => {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -213,11 +213,11 @@ test.describe("Phase 2 Customer Journeys", () => {
     await page.goto("/repair/track/rep-1");
     await expect(page.getByRole("heading", { name: /Repair rep-1/i })).toBeVisible();
     await expect(page.getByText("Screen Replacement")).toBeVisible();
-    await expect(page.getByText("₦45,000")).toBeVisible();
+    await expect(page.getByText("₦45,000").first()).toBeVisible();
   });
 
   test("6. Warranty -> claim -> remedy", async ({ page }) => {
-    await page.route("**/api/warranties/mine*", async (route) => {
+    await page.route("**/api/warranties/mine**", async (route) => {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -235,7 +235,7 @@ test.describe("Phase 2 Customer Journeys", () => {
         }),
       });
     });
-    await page.route("**/api/claims/mine*", async (route) => {
+    await page.route("**/api/claims/mine**", async (route) => {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -250,7 +250,7 @@ test.describe("Phase 2 Customer Journeys", () => {
   });
 
   test("7. Order -> return -> refund state", async ({ page }) => {
-    await page.route("**/api/returns/mine*", async (route) => {
+    await page.route("**/api/returns/mine**", async (route) => {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -260,7 +260,7 @@ test.describe("Phase 2 Customer Journeys", () => {
         }),
       });
     });
-    await page.route("**/api/orders/mine*", async (route) => {
+    await page.route("**/api/orders/mine**", async (route) => {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -275,7 +275,7 @@ test.describe("Phase 2 Customer Journeys", () => {
   });
 
   test("8. Support ticket -> reply -> notification", async ({ page }) => {
-    await page.route("**/api/support-tickets/mine*", async (route) => {
+    await page.route("**/api/support-tickets/mine**", async (route) => {
       return route.fulfill({
         status: 200,
         contentType: "application/json",

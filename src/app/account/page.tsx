@@ -19,9 +19,9 @@ export default function AccountOverviewPage() {
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
       <h1 className="font-display text-2xl font-semibold text-ink">
-        Welcome back{user?.name ? `, ${user.name}` : ""}
+        Account and active sessions
       </h1>
-      <p className="mt-2 text-sm text-mist">{user?.email}</p>
+      <p className="mt-2 text-sm text-mist">{user?.name} · {user?.email}</p>
       <nav aria-label="Account" className="mt-8 grid gap-3 sm:grid-cols-2">
         <Link
           href="/account/orders"
