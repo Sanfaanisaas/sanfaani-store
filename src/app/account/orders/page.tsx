@@ -4,4 +4,57 @@ import { apiClient, errorMessage } from "@/lib/api/client";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ApiState";
 type Order = { id: string; status: string; paymentStatus?: string; totalAmount?: number; createdAt?: string };
 function normalizeOrder(value: unknown): Order { const item = value as Record<string, unknown>; return { id: String(item.id ?? item._id ?? ""), status: typeof item.status === "string" ? item.status : "unknown", paymentStatus: typeof item.paymentStatus === "string" ? item.paymentStatus : undefined, totalAmount: typeof item.totalAmount === "number" ? item.totalAmount : typeof item.total === "number" ? item.total : undefined, createdAt: typeof item.createdAt === "string" ? item.createdAt : undefined }; }
-export default function OrdersPage() { const [orders, setOrders] = useState<Order[]>([]); const [state, setState] = useState<"loading" | "ready" | "error">("loading"); const [message, setMessage] = useState("Order history is unavailable."); const load = useCallback(async () => { try { const data = await apiClient.get<unknown[]>("/orders/mine"); setOrders(Array.isArray(data) ? data.map(normalizeOrder).filter((order) => order.id) : []); setState("ready"); } catch (error) { setMessage(errorMessage(error, "Order history is unavailable.")); setState("error"); } }, []); useEffect(() => { const timer = window.setTimeout(() => { void load(); }, 0); return () => window.clearTimeout(timer); }, [load]); return <main id="main-content" className="mx-auto max-w-5xl px-6 py-10"><h1 className="font-display text-3xl font-semibold">My orders</h1><section className="mt-6">{state === "loading" ? <LoadingState>Loading your orders…</LoadingState> : state === "error" ? <ErrorState message={message} onRetry={() => void load()} /> : orders.length === 0 ? <EmptyState title="No orders found">Your completed checkout orders will appear here.</EmptyState> : <div className="space-y-3">{orders.map((order) => <article key={order.id} className="rounded-2xl border border-navy-900/10 bg-white p-5"><div className="flex flex-wrap justify-between gap-3"><div><h2 className="font-semibold">Order {order.id}</h2><p className="mt-1 text-sm text-mist">{order.createdAt ? new Date(order.createdAt).toLocaleDateString() : "Date unavailable"}</p></div><div className="text-right"><p className="font-semibold">{order.status}</p>{order.paymentStatus && <p className="text-sm text-mist">Payment: {order.paymentStatus}</p>}</div></div>{typeof order.totalAmount === "number" && <p className="mt-3 text-sm">Total: ₦{order.totalAmount.toLocaleString("en-NG")}</p>}</article>)}</div>}</section></main>; }
+export default function OrdersPage() {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [state, setState] = useState<"loading" | "ready" | "error">("loading");
+  const [message, setMessage] = useState("Order history is unavailable.");
+  const load = useCallback(async () => {
+    try {
+      const data = await apiClient.get<Record<string, unknown> | unknown[]>("/orders/mine");
+      const list = Array.isArray(data) ? data : Array.isArray((data as Record<string, unknown>)?.orders) ? ((data as Record<string, unknown>).orders as unknown[]) : [];
+      setOrders(list.map(normalizeOrder).filter((order) => order.id));
+      setState("ready");
+    } catch (error) {
+      setMessage(errorMessage(error, "Order history is unavailable."));
+      setState("error");
+    }
+  }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
+  return (
+    <main id="main-content" className="mx-auto max-w-5xl px-6 py-10">
+      <h1 className="font-display text-3xl font-semibold">My orders</h1>
+      <section className="mt-6">
+        {state === "loading" ? (
+          <LoadingState>Loading your orders…</LoadingState>
+        ) : state === "error" ? (
+          <ErrorState message={message} onRetry={() => void load()} />
+        ) : orders.length === 0 ? (
+          <EmptyState title="No orders found">Your completed checkout orders will appear here.</EmptyState>
+        ) : (
+          <div className="space-y-3">
+            {orders.map((order) => (
+              <article key={order.id} className="rounded-2xl border border-navy-900/10 bg-white p-5">
+                <div className="flex flex-wrap justify-between gap-3">
+                  <div>
+                    <h2 className="font-semibold">Order {order.id}</h2>
+                    <p className="mt-1 text-sm text-mist">{order.createdAt ? new Date(order.createdAt).toLocaleDateString() : "Date unavailable"}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold">{order.status}</p>
+                    {order.paymentStatus && <p className="text-sm text-mist">Payment: {order.paymentStatus}</p>}
+                  </div>
+                </div>
+                {typeof order.totalAmount === "number" && <p className="mt-3 text-sm">Total: ₦{order.totalAmount.toLocaleString("en-NG")}</p>}
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+    </main>
+  );
+}

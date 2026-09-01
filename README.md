@@ -22,7 +22,17 @@ pnpm mobile:validate, pnpm mobile:type-check, pnpm mobile:test
 
 ## CI, deployment, and rollback
 
-The required workflow is .github/workflows/frontend.yml; its required checks are lint, type-check, API contract, tests, build, browser/a11y, Lighthouse, security scan, and mobile validation. Vercel should use the same Node/pnpm versions and server-side backend URL. Set VERCEL_SMOKE_URL to run safe deployment checks. To roll back, identify the last successful Vercel deployment, promote it using the Vercel dashboard/CLI, then run smoke checks and record owner and timestamp.
+The required workflow is .github/workflows/frontend.yml; its required checks are lint, type-check, API contract, tests, build, browser/a11y, Lighthouse, security scan, and mobile validation. 
+
+### Deployment Configuration
+- **Vercel Project Identifier:** `sanfaani-store`
+- **Production Deployment URL:** `https://sanfaani-store.vercel.app`
+- **Preview Behavior:** Vercel automatically provisions branch previews on PR creation using isolated preview environment variables. Previews do not have access to production secrets or production data.
+- **Server-only BACKEND_URL:** Must be set in Vercel environment variables to point to the production backend (e.g., `https://api.sanfaani.com`).
+- **Public Site URL:** `NEXT_PUBLIC_SITE_URL` must be set for SEO metadata generation.
+- **Smoke Test Configuration:** Set `VERCEL_SMOKE_URL` and `API_SMOKE_URL` in CI/CD to run safe post-deployment checks without mutating production.
+
+To roll back, identify the last successful Vercel deployment, promote it using the Vercel dashboard/CLI, then run smoke checks and record owner and timestamp.
 
 ## Accessibility and security
 

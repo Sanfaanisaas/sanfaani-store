@@ -20,5 +20,9 @@
   "devDependencies": {
     "@types/react": "^19",
     "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=22.15.0 <23",
+    "pnpm": "11.15.1"
   }
 }

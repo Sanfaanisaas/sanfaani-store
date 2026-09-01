@@ -23,12 +23,43 @@ test("repair creation uses authenticated JSON and keeps the raw token out of the
 
 test("scoped tracking uses only the header and drops forbidden repair fields", async () => {
   let input = ""; let headers: Headers | undefined;
-  globalThis.fetch = async (request, init) => { input = String(request); headers = new Headers(init?.headers); return ok({ id: "repair-1", status: "QUOTE_SENT", nextAction: "Review", updatedAt: "2026-08-31T00:00:00.000Z", quote: { id: "quote-1", version: 2, lineItems: [{ description: "Screen", amount: 10000 }], totalAmount: 10000, estimatedDays: 3, status: "SENT" }, customer: { email: "private@example.com" }, diagnosisNotes: "private" }); };
+  globalThis.fetch = async (request, init) => {
+    input = String(request);
+    headers = new Headers(init?.headers);
+    return ok({
+      id: "repair-1",
+      status: "QUOTE_SENT",
+      nextAction: "Review",
+      updatedAt: "2026-08-31T00:00:00.000Z",
+      quote: {
+        id: "quote-1",
+        version: 2,
+        lineItems: [{ description: "Screen", amount: 10000 }],
+        totalAmount: 10000,
+        estimatedDays: 3,
+        status: "SENT",
+        issuedAt: "2026-08-31T10:00:00.000Z",
+        expiresAt: "2026-09-07T10:00:00.000Z",
+        superseded: false,
+        supersededByVersion: null,
+        depositRequirement: { required: true, amount: 5000, currency: "NGN", dueBeforeWork: true },
+        paymentState: { status: "pending", confirmedAmount: 0, remainingAmount: 5000 },
+      },
+      customer: { email: "private@example.com" },
+      diagnosisNotes: "private",
+    });
+  };
   const tracking = await fetchRepairTracking("repair-1", "scoped-token");
   assert.equal(input.includes("scoped-token"), false);
   assert.equal(headers?.get("x-repair-tracking-token"), "scoped-token");
   assert.deepEqual(Object.keys(tracking).sort(), ["id", "nextAction", "quote", "status", "updatedAt"]);
   assert.equal("customer" in tracking, false);
+  assert.equal(tracking.quote?.issuedAt, "2026-08-31T10:00:00.000Z");
+  assert.equal(tracking.quote?.expiresAt, "2026-09-07T10:00:00.000Z");
+  assert.equal(tracking.quote?.superseded, false);
+  assert.equal(tracking.quote?.supersededByVersion, null);
+  assert.deepEqual(tracking.quote?.depositRequirement, { required: true, amount: 5000, currency: "NGN", dueBeforeWork: true });
+  assert.deepEqual(tracking.quote?.paymentState, { status: "pending", confirmedAmount: 0, remainingAmount: 5000 });
 });
 
 test("quote decisions use the quote document ID and never attach a tracking credential", async () => {
