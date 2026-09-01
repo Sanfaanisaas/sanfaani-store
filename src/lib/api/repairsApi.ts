@@ -14,7 +14,7 @@ export interface CreatedRepair {
 }
 
 const repairStatuses: readonly string[] = ["REQUESTED", "INTAKE_PENDING", "INTAKE_SCHEDULED", "RECEIVED", "IN_CUSTODY", "DIAGNOSING", "QUOTE_PENDING", "QUOTE_SENT", "AWAITING_APPROVAL", "APPROVED", "AWAITING_PARTS", "IN_REPAIR", "PAUSED", "QC_PENDING", "QC", "READY", "READY_FOR_PICKUP", "HANDED_OVER", "COMPLETED", "DECLINED", "CANCELLED"];
-const quoteStatuses: readonly string[] = ["SENT", "VIEWED", "ACCEPTED", "DECLINED", "EXPIRED"];
+const quoteStatuses: readonly string[] = ["SENT", "VIEWED", "ACCEPTED", "DECLINED", "EXPIRED", "SUPERSEDED"];
 const runtimeTrackingTokens = new Map<string, string>();
 
 function record(value: unknown): Record<string, unknown> {
@@ -48,6 +48,12 @@ function normalizeQuote(value: unknown): PublicQuote {
     totalAmount: requiredInteger(item.totalAmount, "Quote total is unavailable"),
     estimatedDays: requiredInteger(item.estimatedDays, "Quote estimate is unavailable"),
     status: status as QuoteStatus,
+    issuedAt: requiredText(item.issuedAt, "Quote issue time is unavailable"),
+    expiresAt: item.expiresAt === null ? null : requiredText(item.expiresAt, "Quote expiry is unavailable"),
+    superseded: item.superseded === true,
+    supersededByVersion: item.supersededByVersion === null || item.supersededByVersion === undefined ? null : requiredInteger(item.supersededByVersion, "Replacement quote version is unavailable"),
+    depositRequirement: (() => { const deposit = record(item.depositRequirement); return { required: deposit.required === true, amount: requiredInteger(deposit.amount, "Deposit amount is unavailable"), currency: requiredText(deposit.currency, "Deposit currency is unavailable"), dueBeforeWork: deposit.dueBeforeWork === true }; })(),
+    paymentState: (() => { const payment = record(item.paymentState); const value = requiredText(payment.status, "Payment state is unavailable"); if (!["not_required", "pending", "partially_confirmed", "confirmed", "failed"].includes(value)) throw new Error("Payment state is unavailable"); return { status: value as PublicQuote["paymentState"]["status"], confirmedAmount: requiredInteger(payment.confirmedAmount, "Confirmed amount is unavailable"), remainingAmount: requiredInteger(payment.remainingAmount, "Remaining amount is unavailable") }; })(),
   };
 }
 

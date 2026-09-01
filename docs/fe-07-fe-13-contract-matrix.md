@@ -53,8 +53,8 @@ All endpoint paths below are relative to the frontend proxy/API base (`/api`). R
 - pnpm install --frozen-lockfile — passed; no dependency changes.
 - pnpm type-check — passed.
 - pnpm lint — passed with 0 errors and 0 warnings.
-- pnpm test:customer-tickets — passed, 6/6 focused API-boundary tests.
-- pnpm test — passed, 10/10 tests: 9 unit and 1 integration.
+- pnpm test:customer-tickets — passed, 7/7 focused API-boundary tests.
+- pnpm test — passed, 11/11 tests: 10 unit and 1 integration.
 - pnpm build — passed; all authorised routes compiled.
 - pnpm test:e2e — passed, 4 configured browser tests.
 - pnpm test:a11y — passed, 1/1 critical-violation check.

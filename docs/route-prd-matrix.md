@@ -15,7 +15,7 @@
 | Mobile orders/repairs/account | Customer | Owner-scoped APIs | Customer | Expired, unavailable, stale cache | FE-19 |
 | Mobile push/deep links | Customer | Platform boundary; registration unavailable pending backend | Customer | Permission denied, unavailable | FE-19 |
 
-Excluded FE-03–FE-07 and FE-09–FE-14 product domains are not implemented.
+The routes in the authorized customer-flow addendum are implemented only to the documented backend support; their unavailable states are explicit. Other excluded domains remain outside this program.
 
 ## Authorized customer-flow addendum (FE-07, FE-09–FE-13)
 
