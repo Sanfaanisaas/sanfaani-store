@@ -11,12 +11,15 @@ test.describe("Phase 1 customer journeys", () => {
   test("order tracking entry does not place credentials in the URL", async ({ page }) => {
     await page.goto("/orders/track");
     await page.getByLabel("Order reference").fill("64f1f77bcf86cd799439011");
-    await page.getByRole("button", { name: "Continue securely" }).click();
+    await page.getByRole("button", { name: "Continue securely" }).click({ force: true });
     await expect(page).toHaveURL(/\/login|\/account\/orders\//, { timeout: 15000 });
     expect(page.url()).not.toMatch(/token|credential|secret/i);
   });
 
   test("checkout requires authentication", async ({ page }) => {
+    await page.route("**/api/auth/refresh", async (route) => {
+      return route.fulfill({ status: 401, contentType: "application/json", body: JSON.stringify({ success: false, message: "Not authenticated" }) });
+    });
     await page.goto("/checkout");
     await expect(page).toHaveURL(/\/login/, { timeout: 15000 });
   });

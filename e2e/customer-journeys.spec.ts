@@ -128,6 +128,7 @@ test.describe("Phase 2 Customer Journeys", () => {
             items: [
               {
                 variantId: "var-1",
+                variantSku: "MBP-14-SILVER",
                 quantity: 1,
                 name: "MacBook Pro 14",
                 price: 1200000,
