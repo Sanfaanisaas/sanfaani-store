@@ -29,6 +29,7 @@
     "/cart/merge",
     "/checkout",
     "/orders/mine",
+    "/orders/{id}",
     "/orders/eligible-pickup",
     "/orders/{id}/cancel",
     "/orders/{id}/receipt",

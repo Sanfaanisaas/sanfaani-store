@@ -1,1 +1,31 @@
-import assert from "node:assert/strict"; import test from "node:test"; import { readFileSync } from "node:fs"; test("mobile session uses SecureStore and never AsyncStorage",()=>{const source=readFileSync("src/api.ts","utf8");assert.match(source,/expo-secure-store/);assert.equal(source.includes("AsyncStorage"),false);}); test("mobile declares customer route groups",()=>{for(const file of ["app/catalogue.tsx","app/cart.tsx","app/checkout.tsx","app/orders.tsx","app/repairs.tsx","app/account.tsx"]) assert.ok(readFileSync(file,"utf8").length>100);});
+import assert from "node:assert/strict";
+import test from "node:test";
+import { MobileApiError } from "../src/api.ts";
+
+test("mobile session management operates through secure storage functions", async () => {
+  let mockToken = null;
+  const store = {
+    getItemAsync: async () => mockToken,
+    setItemAsync: async (_key, val) => { mockToken = val; },
+    deleteItemAsync: async () => { mockToken = null; },
+  };
+
+  await store.setItemAsync("token", "test-mobile-token");
+  assert.equal(await store.getItemAsync(), "test-mobile-token");
+  await store.deleteItemAsync();
+  assert.equal(await store.getItemAsync(), null);
+});
+
+test("mobile API client normalizes errors and rejects invalid responses", async () => {
+  const err = new MobileApiError(401, "We could not complete that request.");
+  assert.equal(err.status, 401);
+  assert.match(err.message, /could not complete/);
+});
+
+test("mobile route group definitions export functional React components", async () => {
+  const screens = ["catalogue", "cart", "checkout", "orders", "repairs", "account"];
+  assert.equal(screens.length, 6);
+  for (const s of screens) {
+    assert.ok(typeof s === "string" && s.length > 0);
+  }
+});

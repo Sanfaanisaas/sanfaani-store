@@ -33,5 +33,10 @@ export interface DashboardQueueItem { id: string; type: "REPAIR" | "QUOTE" | "IN
 export interface WarrantyRecord { id: string; repair?: string; deviceSummary?: string; status?: string; expiresAt: string; termsVersion?: string; }
 export interface SupportTicket { id: string; subject: string; status: "open" | "in_progress" | "resolved" | "closed"; updatedAt: string; messages?: Array<{ body: string; createdAt?: string }>; }
 export interface AccountSessionRecord { id: string; createdAt: string; lastUsedAt: string; expiresAt: string; deviceLabel: string; current: boolean; revoked: boolean; }
+export interface PublicOrderItem { id?: string; productId?: string; variantSku?: string; name?: string; price: number; quantity: number; }
+export interface PublicOrder { id: string; reference?: string; total: number; subtotal: number; tax: number; deliveryFee?: number; status: OrderStatus | string; paymentStatus: PaymentStatus | string; fulfilmentStatus?: string; createdAt: string; items: PublicOrderItem[]; }
+export interface CheckoutQuoteInput { items: Array<{ productId: string; variantSku: string; quantity: number }>; shippingAddress?: { street: string; city: string; state: string; country: string }; fulfilmentMode?: "delivery" | "pickup"; paymentMethod?: string; }
+export interface CheckoutQuote { items: PublicOrderItem[]; subtotal: number; delivery: number; tax: number; discount: number; total: number; currency: string; fulfilmentMode: "delivery" | "pickup"; pickupEligibility: boolean; paymentMethods: string[]; stockConflicts: Array<{ variantSku: string; available: number }>; priceConflicts: Array<{ variantSku: string; serverPrice: number }>; expiry: string; }
 export interface ApiEnvelope<T> { success: true; data: T; pagination?: ApiPagination; requestId?: string; }
 export interface ApiFailureEnvelope { success: false; message?: string; errors?: Array<{ code?: string; message?: string; path?: string }> | null; requestId?: string; }
+
