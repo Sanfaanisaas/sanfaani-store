@@ -143,7 +143,7 @@ test.describe("Phase 2 Customer Journeys", () => {
     });
 
     await page.goto("/cart");
-    await expect(page.getByRole("heading", { name: "Your cart" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Your cart", exact: true })).toBeVisible();
   });
 
   test("3. Checkout -> Paystack return -> confirmed order", async ({ page }) => {
