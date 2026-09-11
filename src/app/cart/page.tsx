@@ -9,7 +9,7 @@ import { formatPrice } from "@/lib/formatPrice";
 import { removeCartLine, updateCartQuantity } from "@/lib/functions/cartActions";
 import { selectCartItems, selectCartState } from "@/lib/redux/slices/cartSlice";
 import type { AppDispatch, RootState } from "@/lib/redux/store";
-import { errorMessage } from "@/lib/api/client";
+import { errorMessage } from "@/lib/api";
 import { useState } from "react";
 
 export default function CartPage() {
@@ -66,7 +66,7 @@ export default function CartPage() {
             <div className="space-y-4">
               {items.map((item) => (
                 <div key={item.variantId} className="flex items-center gap-4 rounded-xl border border-navy-900/10 bg-white p-4">
-                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-navy-900/4 text-2xl" aria-hidden="true">📦</div>
+                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-navy-900/4 text-2xl" aria-hidden="true"><ShoppingBag className="w-5 h-5 text-neutral-300" /></div>
                   <div className="flex-1">
                     <p className="font-display text-sm font-semibold text-ink">{item.name}</p>
                     <p className="text-xs text-mist">{item.availability.replaceAll("_", " ")} · {formatPrice(item.price)} each</p>

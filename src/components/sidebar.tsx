@@ -19,7 +19,7 @@ interface SidebarProps {
 
 export default function Sidebar({
   title = "My Account",
-  sidebarLinks = [], // 👈 Default fallback to an empty array
+  sidebarLinks = [], //  Default fallback to an empty array
   onLogout,
 }: SidebarProps) {
   return (
